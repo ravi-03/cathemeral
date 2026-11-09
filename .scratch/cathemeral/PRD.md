@@ -134,6 +134,7 @@ The screen must never be left stuck dark. Cathemeral restores the original gamma
 - The code is split into an app target and two local packages. **BrightnessCore** holds all the rules and has no AppKit dependency. **BrightnessPlatform** wraps the macOS APIs behind protocols. A tiny **GammaWatchdog** helper executable is embedded in the app bundle.
 - Signals from macOS go into one **DimmingEngine**, which works out a target level per display and hands them to one **BrightnessBackend**. Only the backend touches the screen. Everything runs on the main actor except gamma ramp writes, which run on each display's display-link thread.
 - Dimming scales each display's gamma table from its captured original curve, so a level applies to the whole display and the display owner's level wins (ADR 0001). Per-window overlays, the private backlight API and DDC were rejected.
+- How gamma tables behave across processes, as measured by the spike, is in `docs/platform/gamma.md`. Read it before writing anything that touches gamma.
 - The `BrightnessBackend` protocol is kept as the extension point for a future per-window overlay backend. The gamma controller is the only implementation for now.
 
 ### Modules

@@ -6,7 +6,7 @@ See the PRD (Implementation Decisions → Open questions for the spike) and ADR 
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Answered: can a separate helper process reset gamma set by another process by restoring ColorSync settings? (Yes/no, with the read-back evidence.)
 - [x] Answered: does macOS restore gamma by itself when the process that set it is killed with SIGKILL? (Checked from a fresh process.)

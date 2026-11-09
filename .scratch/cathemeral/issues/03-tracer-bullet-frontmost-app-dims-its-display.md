@@ -11,6 +11,7 @@ The domain rules come from CONTEXT.md and the PRD: apps are identified by bundle
 **Status:** ready-for-agent
 
 - [ ] The project builds, launches as a menu bar app with no Dock icon, and the test suite runs from one command.
+- [ ] One `check` script runs build, tests and `swift format lint`, and exits non-zero on any failure. A pre-commit hook and a GitHub Actions job both run it.
 - [ ] Bringing an app with a level of 40% to the front dims the built-in display to 40%. Bringing a 100% app to the front restores it.
 - [ ] Opening the popover (Cathemeral itself) or Spotlight leaves the display's level unchanged.
 - [ ] Moving the owner's slider in the popover changes the display live.

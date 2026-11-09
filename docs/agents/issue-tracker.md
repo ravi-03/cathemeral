@@ -9,6 +9,7 @@ Issues and PRDs for this repo live as markdown files in `.scratch/`.
 - Implementation issues are `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01`
 - Triage state is recorded as a `Status:` line near the top of each issue file (see `triage-labels.md` for the role strings)
 - Comments and conversation history append to the bottom of the file under a `## Comments` heading
+- When every acceptance box in an issue is ticked, set its line to `**Status:** done`. A `done` issue counts as finished for blocking edges and is never picked up again
 
 ## When a skill says "publish to the issue tracker"
 

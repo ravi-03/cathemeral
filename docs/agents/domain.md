@@ -8,6 +8,7 @@ This is a **single-context** repo.
 
 - **`CONTEXT.md`** at the repo root — the project's domain glossary.
 - **`docs/adr/`** — read ADRs that touch the area you're about to work in.
+- **`docs/platform/`** — measured macOS behaviour. Read `gamma.md` before writing or reviewing any code that writes gamma.
 
 If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The producer skill (`/grill-with-docs`) creates them lazily when terms or decisions actually get resolved.
 
