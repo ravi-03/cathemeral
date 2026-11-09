@@ -4,6 +4,8 @@
 
 The domain rules come from CONTEXT.md and the PRD: apps are identified by bundle ID (executable path if none), and ignored apps (Spotlight, Dock, Notification Center, login window, Cathemeral itself) never become display owners. The gamma maths scales the captured original curve, never a linear ramp.
 
+**Toolchain note (from ticket 01):** this Mac has only the Command Line Tools, so `xcodebuild` isn't available. Install Xcode, or build the app with SwiftPM and wrap it into an `.app` bundle with a script.
+
 **Blocked by:** 01 (Spike: automated platform checks)
 
 **Status:** ready-for-agent
