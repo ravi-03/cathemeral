@@ -178,7 +178,7 @@ The screen must never be left stuck dark. Cathemeral restores the original gamma
 ### Safety net
 
 - A normal quit restores ColorSync settings for all displays. Termination signals are handled the same way.
-- If the app dies for any reason, including `kill -9`, macOS itself resets the gamma it set (measured: about 70 ms). The spike (ticket 01) showed that gamma belongs to the WindowServer connection that wrote it: `CGDisplayRestoreColorSyncSettings` only undoes the caller's own gamma, the last write wins across processes, and when any process that wrote gamma exits, every display is reset to ColorSync defaults.
+- If the app dies for any reason, including `kill -9`, macOS itself resets the gamma it set (measured: 65 ms). The spike (ticket 01) showed that gamma belongs to the WindowServer connection that wrote it: `CGDisplayRestoreColorSyncSettings` only undoes the caller's own gamma, the last write wins across processes, and when any process that wrote gamma exits, every display is reset to ColorSync defaults.
 - The watchdog helper is launched at startup and holds a pipe to the app. The app writes a heartbeat byte every 500 ms from the main run loop. The watchdog waits with a **1.5-second** timeout. End-of-file means the app died: macOS has already restored, so the watchdog just exits. A timeout means the app is hung: the watchdog spawns a one-shot **restorer** process that writes each display's current table back unchanged and exits, which makes WindowServer reset every display. The watchdog then signals back. If the app recovers, it re-applies its targets with a ramp. The watchdog itself never writes gamma, because its own exit would wipe the app's dimming.
 - App Nap is disabled for the heartbeat through a user-initiated activity.
 
@@ -194,10 +194,10 @@ The screen must never be left stuck dark. Cathemeral restores the original gamma
 
 These must be answered before the build relies on them. Answers from ticket 01 (M1, macOS 26.3); details and raw output are in that ticket and on the `prototype/spike` branch:
 - ~~Can `CGDisplayRestoreColorSyncSettings` called from the watchdog process reset gamma set by the app process?~~ **No.** The watchdog uses a one-shot restorer process instead (see Safety net).
-- ~~Does macOS restore gamma by itself when the process that set it exits?~~ **Yes**, about 70 ms after a SIGKILL. It also resets every display when *any* gamma writer exits (see Paused displays).
+- ~~Does macOS restore gamma by itself when the process that set it exits?~~ **Yes**, 65 ms after a SIGKILL. It also resets every display when *any* gamma writer exits (see Paused displays).
 - Does Night Shift go through the gamma table? (It's believed not to, in which case it stacks with dimming rather than pausing a display.) *Open: ticket 02.*
-- Actual switch latency, measured with a 240 fps video of Cmd-Tab. *Software part measured: activation notification to first gamma write, about 5 ms median and 13–18 ms at p95. Glass-to-glass: ticket 02.*
-- ~~Actual cost of one on-screen window list call with about 50 windows.~~ **About 0.85 ms median and 3.4 ms at p95** with 58 layer-0 windows, roughly 0.1% of a core at 1 Hz.
+- Actual switch latency, measured with a 240 fps video of Cmd-Tab. *Software part measured: activation notification to first gamma write, 4.4 ms median and 11.4 ms at p95. Glass-to-glass: ticket 02.*
+- ~~Actual cost of one on-screen window list call with about 50 windows.~~ **About 0.9 ms median and 2.9 ms at p95** with 58 layer-0 windows, roughly 0.1% of a core at 1 Hz.
 - The bundle ID prefix (proposed: `io.github.ravi-03.cathemeral`) must be fixed before the first release.
 
 ## Testing Decisions
