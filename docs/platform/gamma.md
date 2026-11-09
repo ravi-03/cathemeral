@@ -1,13 +1,13 @@
 # Gamma tables on macOS
 
-These facts were measured by the ticket 01 spike, on an M1 running macOS 26.3 with only the built-in display. The evidence is in `.scratch/cathemeral/issues/01-spike-automated-platform-checks.md` (Comments section), and the code and recorded run are in `spike/` on the `prototype/spike` branch. Apple doesn't document any of this. If macOS behaves differently, rerun `spike/run-all.sh` on that branch.
+These facts were measured by the ticket 01 spike on an M1 with only the built-in display. They were measured on macOS 26.3 and confirmed unchanged on macOS 27.2. The evidence is in `.scratch/cathemeral/issues/01-spike-automated-platform-checks.md` (Comments section), and the code and recorded run are in `spike/` on the `prototype/spike` branch. Apple doesn't document any of this. If macOS behaves differently, rerun `spike/run-all.sh` on that branch.
 
 ## The model
 
 - **One table per display.** It is applied to the final composited picture, so it affects every app on that display equally. No app can have a table of its own. That's why ADR 0001 dims whole displays.
 - **Reads are global.** `CGGetDisplayTransferByTable` returns the same table in every process, including processes that never wrote gamma.
 - **The last write wins.** Writes from different processes replace each other; they don't stack.
-- **WindowServer remembers which processes have written to the table.** When any of them exits, for any reason including SIGKILL, the display resets to its ColorSync curve, even if a different process wrote last. This took 65 ms after a SIGKILL. A process that never wrote gamma doesn't trigger the reset when it exits.
+- **WindowServer remembers which processes have written to the table.** When any of them exits, for any reason including SIGKILL, the display resets to its ColorSync curve, even if a different process wrote last. This took 65–67 ms after a SIGKILL. A process that never wrote gamma doesn't trigger the reset when it exits.
 - **`CGDisplayRestoreColorSyncSettings` only undoes the caller's own writes.** Called from a process that never wrote, it does nothing.
 
 ## What follows for Cathemeral

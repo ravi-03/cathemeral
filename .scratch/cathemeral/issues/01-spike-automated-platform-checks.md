@@ -66,3 +66,17 @@ At 1 Hz that's about 0.1% of one core with ~50 windows. There are rare outliers 
 4. **The restorer resets all displays, as far as this one-display Mac can show.** Confirm with an external monitor in ticket 02.
 5. **Latency and window-list cost fit the budgets.** Activation to first write is about 4 ms median and 11 ms at p95, leaving most of the 100 ms for the display. The 1 Hz window list costs about 0.1% of a core. No design change, but consider calling the window list off the main actor because of its rare 20–50 ms outliers.
 6. **Toolchain (ticket 03).** This Mac has only the Command Line Tools, so `xcodebuild` isn't available. Ticket 03's app target needs Xcode installed, or a SwiftPM executable wrapped into an `.app` bundle by a script.
+
+### 2026-11-10: recheck on macOS 27.2 (agent)
+
+After the macOS update to 27.2 (26B123), `spike/run-all.sh` was rerun on the same M1. Results are in `spike/results-macos-27.2.txt` on `prototype/spike`; `spike/results.txt` still holds the 26.3 run cited above. **Every answer is unchanged:**
+- **Q1:** No.
+- **Q1b:** the ownership steps read the same values as on 26.3.
+- **Q2:** Yes, 67 ms.
+- **Q3:** the restore call never restored. The restorer with a 2 s timeout had a worst case of 2019 ms. With a 1.5 s timeout: median 1372 ms, worst 1578 ms, recovery 20/20.
+- **Q4:** 0.75 ms median and 4.2 ms p95 with 55 layer-0 windows.
+- **Q5:** median 5.7 ms, p95 10.2 ms.
+- **Q5b:** writes 37 ms apart took up to 7.5 ms.
+
+The screen was left as found. No design change.
+
