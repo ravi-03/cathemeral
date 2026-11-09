@@ -1,0 +1,256 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		C0DE00000000000000000B01 /* BrightnessCore in Frameworks */ = {isa = PBXBuildFile; productRef = C0DE00000000000000000D01 /* BrightnessCore */; };
+		C0DE00000000000000000B02 /* BrightnessPlatform in Frameworks */ = {isa = PBXBuildFile; productRef = C0DE00000000000000000D02 /* BrightnessPlatform */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		C0DE00000000000000000A01 /* Cathemeral.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cathemeral.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		C0DE00000000000000000A02 /* Cathemeral */ = {isa = PBXFileSystemSynchronizedRootGroup; path = App/Cathemeral; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C0DE00000000000000000E01 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C0DE00000000000000000B01 /* BrightnessCore in Frameworks */,
+				C0DE00000000000000000B02 /* BrightnessPlatform in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		C0DE00000000000000000F01 = {
+			isa = PBXGroup;
+			children = (
+				C0DE00000000000000000A02 /* Cathemeral */,
+				C0DE00000000000000000F02 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C0DE00000000000000000F02 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C0DE00000000000000000A01 /* Cathemeral.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C0DE00000000000000000C01 /* Cathemeral */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0DE00000000000000000712 /* Build configuration list for PBXNativeTarget "Cathemeral" */;
+			buildPhases = (
+				C0DE00000000000000000E02 /* Sources */,
+				C0DE00000000000000000E01 /* Frameworks */,
+				C0DE00000000000000000E03 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C0DE00000000000000000A02 /* Cathemeral */,
+			);
+			name = Cathemeral;
+			packageProductDependencies = (
+				C0DE00000000000000000D01 /* BrightnessCore */,
+				C0DE00000000000000000D02 /* BrightnessPlatform */,
+			);
+			productName = Cathemeral;
+			productReference = C0DE00000000000000000A01 /* Cathemeral.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C0DE00000000000000000741 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+			};
+			buildConfigurationList = C0DE00000000000000000711 /* Build configuration list for PBXProject "Cathemeral" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = C0DE00000000000000000F01;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C0DE00000000000000000731 /* XCLocalSwiftPackageReference "Packages/BrightnessCore" */,
+				C0DE00000000000000000732 /* XCLocalSwiftPackageReference "Packages/BrightnessPlatform" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = C0DE00000000000000000F02 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C0DE00000000000000000C01 /* Cathemeral */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C0DE00000000000000000E03 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C0DE00000000000000000E02 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		C0DE00000000000000000721 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		C0DE00000000000000000722 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		C0DE00000000000000000723 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Cathemeral;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.ravi-03.cathemeral";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		C0DE00000000000000000724 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Cathemeral;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.ravi-03.cathemeral";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C0DE00000000000000000711 /* Build configuration list for PBXProject "Cathemeral" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0DE00000000000000000721 /* Debug */,
+				C0DE00000000000000000722 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C0DE00000000000000000712 /* Build configuration list for PBXNativeTarget "Cathemeral" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0DE00000000000000000723 /* Debug */,
+				C0DE00000000000000000724 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		C0DE00000000000000000731 /* XCLocalSwiftPackageReference "Packages/BrightnessCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/BrightnessCore;
+		};
+		C0DE00000000000000000732 /* XCLocalSwiftPackageReference "Packages/BrightnessPlatform" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/BrightnessPlatform;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C0DE00000000000000000D01 /* BrightnessCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrightnessCore;
+		};
+		C0DE00000000000000000D02 /* BrightnessPlatform */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrightnessPlatform;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = C0DE00000000000000000741 /* Project object */;
+}

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Runs everything a change must pass: format lint, tests and the app build.
+# Exits non-zero on the first failure. Run by the pre-commit hook and by CI.
+#
+# None of these steps writes gamma, so a failure can't leave the screen dim.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+swift_sources=(App Packages/*/Sources Packages/*/Tests Packages/*/Package.swift)
+
+echo "==> swift format lint"
+swift format lint --strict --recursive "${swift_sources[@]}"
+
+echo "==> tests (BrightnessCore)"
+swift test --package-path Packages/BrightnessCore
+
+echo "==> build (Cathemeral.app)"
+xcodebuild -project Cathemeral.xcodeproj -scheme Cathemeral -configuration Debug \
+    -destination "platform=macOS,arch=$(uname -m)" -derivedDataPath build/DerivedData -quiet build
+
+echo "==> check passed"

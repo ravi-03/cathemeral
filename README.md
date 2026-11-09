@@ -4,7 +4,7 @@ Per-app brightness for macOS.
 
 Cathemeral is a menu bar app that dims each display to a level you choose for the app in front on that display. Set Notion to 40% once, and the screen showing Notion dims to 40% whenever it's there, without touching the brightness keys.
 
-> **Status:** design phase. There is no code yet. The design is settled; the next step is a two-day spike to measure switch latency and prove crash-safe restore.
+> **Status:** early build. The tracer bullet works: the frontmost app dims the built-in display to its level, kept in memory until quit.
 
 ## How it works
 
@@ -25,6 +25,16 @@ The dimming lives only in memory, so a restart always clears it. The 10% floor k
 4. **Log out or restart:** always works.
 
 The brightness keys, Night Shift and True Tone won't fix it, because they don't touch the gamma table.
+
+## Building
+
+Needs Xcode 16 or later (developed on Xcode 27.2).
+
+- `scripts/check` runs `swift format lint`, the tests and the app build, and exits non-zero on any failure. CI runs it too. Turn on the pre-commit hook that runs it with `git config core.hooksPath .githooks`.
+- `swift test --package-path Packages/BrightnessCore` runs the tests alone.
+- Open `Cathemeral.xcodeproj` to run the app.
+
+The code is split into `Packages/BrightnessCore` (the rules, no AppKit), `Packages/BrightnessPlatform` (macOS wrappers) and the thin app target in `App/Cathemeral`.
 
 ## Project docs
 
