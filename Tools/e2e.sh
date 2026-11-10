@@ -58,6 +58,11 @@ expect "owner's level changes live" 0.5500
 echo "set com.apple.Terminal 0.02" >&3
 expect "level below the floor" 0.1000
 echo "set com.apple.Terminal 0.4" >&3
+expect "40% app in front before hiding" 0.4000
+echo "hide com.apple.Terminal" >&3
+expect "hiding the owner hands the display over (nothing else set, so 100%)" 1.0000
+open -b com.apple.Terminal
+expect "showing it again" 0.4000
 echo "displays-changed" >&3
 expect "display change re-captures the original and re-applies" 0.4000
 echo "displays-changed" >&3

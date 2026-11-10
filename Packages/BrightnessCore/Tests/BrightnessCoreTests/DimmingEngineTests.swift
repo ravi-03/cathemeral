@@ -451,4 +451,217 @@ import Testing
         engine.setSuspended(false)
         #expect(backend.levels[builtIn] == Level(0.4))
     }
+
+    // MARK: Ownership follows windows
+
+    @Test func minimisingTheOwnersLastWindowHandsTheDisplayToTheTopmostVisibleApp() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        store.saved.appSettings[terminal.id] = Level(0.7)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+
+        engine.visibleAppsChanged([builtIn: [terminal, safari]])
+
+        #expect(engine.owner(of: builtIn) == terminal)
+        #expect(backend.levels[builtIn] == Level(0.7))
+        #expect(backend.ramps[builtIn] == DimmingEngine.switchRamp)
+    }
+
+    @Test func swipingToAnEmptySpaceLeavesTheDisplayUnownedAtFullLevel() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+
+        engine.visibleAppsChanged([:])
+
+        #expect(engine.owner(of: builtIn) == nil)
+        #expect(backend.levels[builtIn] == .full)
+        #expect(backend.ramps[builtIn] == DimmingEngine.switchRamp)
+    }
+
+    @Test func anIgnoredAppOnTopIsSkippedWhenHandingOver() {
+        store.saved.appSettings[terminal.id] = Level(0.7)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+
+        engine.visibleAppsChanged([builtIn: [cathemeral, terminal]])
+
+        #expect(engine.owner(of: builtIn) == terminal)
+        #expect(backend.levels[builtIn] == Level(0.7))
+    }
+
+    @Test func aDisplayShowingOnlyIgnoredAppsIsUnowned() {
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+
+        engine.visibleAppsChanged([builtIn: [cathemeral]])
+
+        #expect(engine.owner(of: builtIn) == nil)
+    }
+
+    @Test func anOwnerStillVisibleBeneathAnotherAppKeepsTheDisplay() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        let before = backend.applied.count
+
+        engine.visibleAppsChanged([builtIn: [terminal, notion]])
+
+        #expect(engine.owner(of: builtIn) == notion)
+        #expect(backend.applied.count == before)
+    }
+
+    @Test func focusMovingToAnotherDisplayDoesNotChangeOwnership() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: external)
+        engine.appActivated(safari, on: builtIn)
+        let before = backend.applied.count
+
+        engine.visibleAppsChanged([builtIn: [safari], external: [notion]])
+
+        #expect(engine.owner(of: external) == notion)
+        #expect(engine.owner(of: builtIn) == safari)
+        #expect(backend.applied.count == before)
+    }
+
+    @Test func anUnownedDisplayPassesToTheTopmostAppThatAppearsOnIt() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(terminal, on: builtIn)
+
+        engine.visibleAppsChanged([builtIn: [terminal], external: [notion]])
+
+        #expect(engine.owner(of: external) == notion)
+        #expect(backend.levels[external] == Level(0.4))
+    }
+
+    @Test func hidingTheOwnerHandsTheDisplayToTheAppNowOnTop() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        store.saved.appSettings[terminal.id] = Level(0.7)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+
+        // A hidden app's windows can still be listed for a moment after the hide.
+        engine.appLeft(notion.id, visibleApps: [builtIn: [notion, terminal]])
+
+        #expect(engine.owner(of: builtIn) == terminal)
+        #expect(backend.levels[builtIn] == Level(0.7))
+    }
+
+    @Test func quittingTheOwnerHandsOverOnlyTheDisplaysItOwned() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        store.saved.appSettings[terminal.id] = Level(0.7)
+        let engine = makeEngine()
+        engine.appActivated(safari, on: external)
+        engine.appActivated(notion, on: builtIn)
+
+        engine.appLeft(notion.id, visibleApps: [builtIn: [terminal], external: [safari]])
+
+        #expect(engine.owner(of: builtIn) == terminal)
+        #expect(engine.owner(of: external) == safari)
+        #expect(backend.levels[builtIn] == Level(0.7))
+    }
+
+    @Test func withNothingSetBelowFullLevelWindowsNeedNoTracking() {
+        store.saved.defaultLevel = .full
+        store.saved.appSettings[notion.id] = .full
+        let engine = makeEngine()
+
+        #expect(!engine.needsWindowTracking)
+    }
+
+    @Test func anAppSettingBelowFullLevelNeedsWindowTrackingUntilItIsRemoved() {
+        store.saved.defaultLevel = .full
+        let engine = makeEngine()
+
+        engine.setLevel(Level(0.4), for: notion.id)
+        #expect(engine.needsWindowTracking)
+
+        engine.useDefault(for: notion.id)
+        #expect(!engine.needsWindowTracking)
+    }
+
+    @Test func aDefaultLevelBelowFullLevelNeedsWindowTracking() {
+        store.saved.defaultLevel = .full
+        let engine = makeEngine()
+
+        engine.setDefaultLevel(Level(0.8))
+
+        #expect(engine.needsWindowTracking)
+    }
+
+    @Test func anAppThatLeavesWhileItsSwitchIsUnderWayLeavesNoEarlyDimming() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(terminal, on: builtIn)
+        engine.appActivating(notion, on: builtIn)
+
+        engine.appLeft(notion.id, visibleApps: [builtIn: [terminal]])
+
+        #expect(engine.owner(of: builtIn) == terminal)
+        #expect(backend.levels[builtIn] == .full)
+    }
+
+    @Test func draggingTheOwnersWindowToADisplayAnotherAppOwnsLeavesThatDisplaysOwner() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(safari, on: external)
+        engine.appActivated(notion, on: builtIn)
+
+        engine.visibleAppsChanged([external: [notion, safari]])
+
+        #expect(engine.owner(of: builtIn) == nil)
+        #expect(backend.levels[builtIn] == .full)
+        #expect(engine.owner(of: external) == safari)
+        #expect(backend.levels[external] == .full)
+    }
+
+    @Test func anAppThatOwnsNoDisplayLeavingChangesNothing() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        let before = backend.applied.count
+
+        engine.appLeft(terminal.id, visibleApps: [builtIn: [notion]])
+
+        #expect(engine.owner(of: builtIn) == notion)
+        #expect(backend.applied.count == before)
+    }
+
+    @Test func aHandoverDuringASwitchNeverBrightensADisplayDimmedEarly() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(terminal, on: builtIn)
+        engine.appActivating(notion, on: builtIn)
+
+        engine.visibleAppsChanged([builtIn: [safari]])
+
+        #expect(engine.owner(of: builtIn) == safari)
+        #expect(backend.levels[builtIn] == Level(0.4))
+        engine.appActivated(notion, on: builtIn)
+        #expect(backend.levels[builtIn] == Level(0.4))
+    }
+
+    @Test func handingOverToAnAppAtTheSameLevelLeavesTheDisplayAlone() {
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        let before = backend.applied.count
+
+        engine.visibleAppsChanged([builtIn: [terminal]])
+
+        #expect(engine.owner(of: builtIn) == terminal)
+        #expect(backend.applied.count == before)
+    }
+
+    @Test func whileSuspendedWindowsNeedNoTracking() {
+        store.saved.defaultLevel = Level(0.5)
+        let engine = makeEngine()
+
+        engine.setSuspended(true)
+        #expect(!engine.needsWindowTracking)
+
+        engine.setSuspended(false)
+        #expect(engine.needsWindowTracking)
+    }
 }

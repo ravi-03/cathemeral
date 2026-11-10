@@ -26,7 +26,11 @@ import Observation
     @ObservationIgnored private var shown: [DisplayID: Level] = [:]
 
     /// While suspended, every display keeps its original curve and nothing is written.
-    @ObservationIgnored private var isSuspended = false
+    private var isSuspended = false
+
+    /// The app reported by `appActivating` whose `appActivated` hasn't arrived yet. Displays may
+    /// be dimmed early for it.
+    @ObservationIgnored private var activating: AppID?
     private var settings: Settings
 
     /// - Parameters:
@@ -58,6 +62,7 @@ import Observation
     /// early would flash it bright. An ignored app changes nothing.
     public func appActivating(_ app: App, on display: DisplayID) {
         guard !ignoredApps.contains(app.id) else { return }
+        activating = app.id
         let level = level(for: app.id)
         if level < shown[display, default: .full] {
             show(level, on: display, over: Self.switchRamp)
@@ -68,13 +73,47 @@ import Observation
     /// An ignored app changes nothing.
     public func appActivated(_ app: App, on display: DisplayID) {
         guard !ignoredApps.contains(app.id) else { return }
+        activating = nil
         owners[display] = app
         show(level(for: app.id), on: display, over: Self.switchRamp)
         // A display dimmed early for this app may not be where its window ended up.
-        for (other, level) in shown where other != display {
-            let target = owners[other].map { self.level(for: $0.id) } ?? .full
-            if level != target { show(target, on: other, over: Self.switchRamp) }
+        showEveryTargetNotShown()
+    }
+
+    /// The apps with a visible window on each display, topmost first. A display missing from
+    /// `visibleApps` has none.
+    ///
+    /// An owner with no visible window left on its display loses it, and each display without an
+    /// owner passes to its topmost visible app that isn't an ignored app, or stays unowned if there
+    /// is none.
+    public func visibleAppsChanged(_ visibleApps: [DisplayID: [App]]) {
+        var handedOver: Set<DisplayID> = []
+        for (display, owner) in owners where !visibleApps[display, default: []].contains(owner) {
+            owners[display] = nil
+            handedOver.insert(display)
         }
+        for (display, apps) in visibleApps where owners[display] == nil {
+            guard let topmost = apps.first(where: { !ignoredApps.contains($0.id) }) else { continue }
+            owners[display] = topmost
+            handedOver.insert(display)
+        }
+        for display in handedOver where target(for: display) != shown[display, default: .full] {
+            // Mid-switch, a display may be dimmed early for the app coming to the front. Brightening it
+            // now would flash the old window bright; `appActivated` sets it right once the switch ends.
+            if activating != nil, target(for: display) > shown[display, default: .full] { continue }
+            show(target(for: display), on: display, over: Self.switchRamp)
+        }
+    }
+
+    /// `app` was hidden or quit. Every display it owned passes straight away to its topmost visible
+    /// app, or becomes unowned. The app is left out of `visibleApps` even if it's listed there.
+    public func appLeft(_ app: AppID, visibleApps: [DisplayID: [App]]) {
+        if activating == app {
+            // Its switch will never finish, so undo any display dimmed early for it.
+            activating = nil
+            showEveryTargetNotShown()
+        }
+        visibleAppsChanged(visibleApps.mapValues { $0.filter { $0.id != app } })
     }
 
     /// Displays were added, removed or reconfigured, or the Mac woke up. macOS may have reset every
@@ -129,6 +168,12 @@ import Observation
         settingsChanged()
     }
 
+    /// Whether anything could be dimmed: the engine isn't suspended, and the default level or some
+    /// app setting is below 100%. Only then is it worth watching windows for ownership changes.
+    public var needsWindowTracking: Bool {
+        !isSuspended && (settings.defaultLevel < .full || settings.appSettings.values.contains { $0 < .full })
+    }
+
     /// The app's own app setting, or the default level if it has none.
     public func level(for app: AppID) -> Level {
         settings.appSettings[app] ?? settings.defaultLevel
@@ -147,6 +192,19 @@ import Observation
         backend.restore()
     }
 
+    /// The level `display` should show: its owner's level, or 100% if it's unowned.
+    private func target(for display: DisplayID) -> Level {
+        owners[display].map { level(for: $0.id) } ?? .full
+    }
+
+    /// Fades every display not showing its target, such as one dimmed early for a switch that ended
+    /// elsewhere or never ended.
+    private func showEveryTargetNotShown() {
+        for (display, level) in shown where level != target(for: display) {
+            show(target(for: display), on: display, over: Self.switchRamp)
+        }
+    }
+
     private func show(_ level: Level, on display: DisplayID, over ramp: Duration) {
         shown[display] = level
         if !isSuspended { backend.apply(level, to: display, over: ramp) }
@@ -156,8 +214,8 @@ import Observation
     /// Unowned displays already show their original curve.
     private func showEveryOwnersLevel(over ramp: Duration) {
         shown = [:]
-        for (display, owner) in owners {
-            show(level(for: owner.id), on: display, over: ramp)
+        for display in owners.keys {
+            show(target(for: display), on: display, over: ramp)
         }
     }
 
@@ -165,8 +223,8 @@ import Observation
     /// further change.
     private func settingsChanged() {
         // Only displays whose level changed, so a display still fading after a switch isn't cut short.
-        for (display, owner) in owners where shown[display] != level(for: owner.id) {
-            show(level(for: owner.id), on: display, over: .zero)
+        for display in owners.keys where shown[display] != target(for: display) {
+            show(target(for: display), on: display, over: .zero)
         }
         pendingSave?.cancel()
         pendingSave = clock.schedule(after: Self.saveDelay) { [weak self] in

@@ -1,10 +1,11 @@
-// Runs the real DimmingEngine, GammaController and ActivationMonitor, like the app does but
+// Runs the real DimmingEngine, GammaController, ActivationMonitor and FrontWindowTracker, like the app does but
 // with no UI, and takes commands on stdin so a script can drive it:
 //
 //   set <bundle-id> <fraction>   save an app setting (live if the app owns a display)
 //   activate <bundle-id>         report an activation directly, as if that app came to the front
 //                                on the built-in display (use for ignored apps like Spotlight,
 //                                which `open` can't bring forward)
+//   hide <bundle-id>             hide that app, as Cmd-H does
 //   displays-changed             report a display change, as after plugging in a monitor or waking
 //   suspend                      suspend dimming, as when the screen locks
 //   unsuspend                    stop suspending, as when the screen unlocks (fades back)
@@ -30,8 +31,15 @@ func say(_ line: String) {
     private var signalSources: [any DispatchSourceSignal] = []
     private lazy var activations = ActivationMonitor(
         onActivating: { [unowned self] app, display in engine.appActivating(app, on: display) },
-        onActivation: { [unowned self] app, display in report(app, on: display) }
+        onActivation: { [unowned self] app, display in report(app, on: display) },
+        onLeft: { [unowned self] app, visibleApps in
+            engine.appLeft(app, visibleApps: visibleApps)
+            say("left \(app): owner \(engine.owner(of: Displays.builtIn)?.id.rawValue ?? "none")")
+        }
     )
+    private lazy var windowTracker = FrontWindowTracker { [unowned self] visibleApps in
+        engine.visibleAppsChanged(visibleApps)
+    }
 
     func start() {
         for terminationSignal in [SIGTERM, SIGINT, SIGHUP] {
@@ -44,6 +52,7 @@ func say(_ line: String) {
             signalSources.append(source)
         }
         activations.start()
+        windowTracker.start()
     }
 
     func run(_ command: [Substring]) {
@@ -55,6 +64,12 @@ func say(_ line: String) {
         case ("activate", 2):
             let id = AppID(bundleID: String(command[1]))
             report(App(id: id, name: id.rawValue), on: Displays.builtIn)
+        case ("hide", 2):
+            // `hide()` can return false even when the app hides, so the `left` line is the result.
+            for running in NSRunningApplication.runningApplications(withBundleIdentifier: String(command[1])) {
+                _ = running.hide()
+            }
+            say("hide \(command[1]) requested")
         case ("displays-changed", 1):
             let active = Displays.active
             engine.displaysChanged(to: active)

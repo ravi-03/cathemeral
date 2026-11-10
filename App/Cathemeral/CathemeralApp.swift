@@ -28,8 +28,13 @@ struct CathemeralApp: SwiftUI.App {
 
     private lazy var activations = ActivationMonitor(
         onActivating: { [engine] app, display in engine.appActivating(app, on: display) },
-        onActivation: { [engine] app, display in engine.appActivated(app, on: display) }
+        onActivation: { [engine] app, display in engine.appActivated(app, on: display) },
+        onLeft: { [engine] app, visibleApps in engine.appLeft(app, visibleApps: visibleApps) }
     )
+
+    private lazy var windowTracker = FrontWindowTracker { [engine] visibleApps in
+        engine.visibleAppsChanged(visibleApps)
+    }
 
     private lazy var displayMonitor = DisplayMonitor(
         onDisplaysChanged: { [engine] online in engine.displaysChanged(to: online) },
@@ -43,6 +48,19 @@ struct CathemeralApp: SwiftUI.App {
         restoreOnTerminationSignals()
         displayMonitor.start()
         activations.start()
+        trackWindowsWhileNeeded()
+    }
+
+    /// Runs the window tracker only while something could be dimmed, and keeps it that way as
+    /// settings change.
+    private func trackWindowsWhileNeeded() {
+        let needed = withObservationTracking {
+            engine.needsWindowTracking
+        } onChange: {
+            // Called before the change lands, so look again once it has.
+            Task { @MainActor [weak self] in self?.trackWindowsWhileNeeded() }
+        }
+        if needed { windowTracker.start() } else { windowTracker.stop() }
     }
 
     /// Termination signals skip `applicationWillTerminate`, so restore here too before exiting.
@@ -65,6 +83,7 @@ struct CathemeralApp: SwiftUI.App {
     /// Every normal quit (the Quit button, Cmd-Q, logout) passes through here.
     func applicationWillTerminate(_ notification: Notification) {
         activations.stop()
+        windowTracker.stop()
         displayMonitor.stop()
         engine.restore()
         engine.savePendingChanges()
