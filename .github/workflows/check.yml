@@ -7,13 +7,14 @@ on:
 
 jobs:
   check:
-    # Pinned to the toolchain scripts/check is run with locally (Xcode 27.2, Swift 6.4.2), so
-    # swift format lints the same way here. Bump both together.
+    # Pinned to the newest Xcode on GitHub's macos-26 image (26.0 to 26.6 as of 2026-11-02).
+    # Development uses Xcode 27.2, which no hosted runner has yet. Move to 27.x once the image
+    # lists it; until then a lint or build difference between the two shows up here first.
     runs-on: macos-26
     env:
-      XCODE_VERSION: "27.2"
+      XCODE_VERSION: "26.6"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Select Xcode ${{ env.XCODE_VERSION }}
         run: |
           app="/Applications/Xcode_${XCODE_VERSION}.app"
