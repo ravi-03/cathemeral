@@ -28,6 +28,12 @@ public struct AppID: Hashable, Sendable, CustomStringConvertible {
         }
     }
 
+    /// The bundle ID, or nil if the app is identified by its executable path.
+    public var bundleID: String? { isExecutablePath ? nil : rawValue }
+
+    /// The executable path, or nil if the app is identified by its bundle ID.
+    public var executablePath: String? { isExecutablePath ? rawValue : nil }
+
     public var description: String { rawValue }
 }
 

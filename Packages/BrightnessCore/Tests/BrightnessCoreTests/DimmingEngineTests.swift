@@ -3,7 +3,7 @@ import Testing
 
 @MainActor @Suite struct DimmingEngineTests {
     let backend = RecordingBackend()
-    let store = InMemorySettingsStore()
+    let store = RecordingSettingsStore()
     let clock = TestClock()
 
     func makeEngine() -> DimmingEngine {
@@ -11,7 +11,7 @@ import Testing
     }
 
     @Test func activationMakesTheAppTheDisplayOwnerAndDimsToItsLevel() {
-        store.setAppSetting(Level(0.4), for: notion.id)
+        store.saved.appSettings[notion.id] = Level(0.4)
         let engine = makeEngine()
 
         engine.appActivated(notion, on: builtIn)
@@ -21,7 +21,7 @@ import Testing
     }
 
     @Test func anAppWithoutAnAppSettingUsesTheDefaultLevel() {
-        store.defaultLevel = Level(0.7)
+        store.saved.defaultLevel = Level(0.7)
         let engine = makeEngine()
 
         engine.appActivated(terminal, on: builtIn)
@@ -38,8 +38,8 @@ import Testing
         cathemeral,
     ])
     func anIgnoredAppNeverBecomesTheDisplayOwner(ignored: App) {
-        store.setAppSetting(Level(0.4), for: notion.id)
-        store.setAppSetting(Level(0.8), for: ignored.id)
+        store.saved.appSettings[notion.id] = Level(0.4)
+        store.saved.appSettings[ignored.id] = Level(0.8)
         let engine = makeEngine()
         engine.appActivated(notion, on: builtIn)
 
@@ -82,7 +82,7 @@ import Testing
     }
 
     @Test func aDefaultLevelBelowTenPercentIsClampedToTheFloor() {
-        store.defaultLevel = Level(-1)
+        store.saved.defaultLevel = Level(-1)
         let engine = makeEngine()
 
         engine.appActivated(terminal, on: builtIn)
@@ -91,7 +91,7 @@ import Testing
     }
 
     @Test func restoringPutsEveryDisplayBackToItsOriginalCurve() {
-        store.setAppSetting(Level(0.4), for: notion.id)
+        store.saved.appSettings[notion.id] = Level(0.4)
         let engine = makeEngine()
         engine.appActivated(notion, on: builtIn)
 
@@ -101,8 +101,8 @@ import Testing
     }
 
     @Test func bringingAFullLevelAppToTheFrontUndimsTheDisplay() {
-        store.setAppSetting(Level(0.4), for: notion.id)
-        store.setAppSetting(.full, for: terminal.id)
+        store.saved.appSettings[notion.id] = Level(0.4)
+        store.saved.appSettings[terminal.id] = .full
         let engine = makeEngine()
         engine.appActivated(notion, on: builtIn)
 
@@ -110,5 +110,107 @@ import Testing
 
         #expect(engine.owner(of: builtIn) == terminal)
         #expect(backend.levels[builtIn] == .full)
+    }
+
+    @Test func aChangeIsSaved300MillisecondsLater() {
+        let engine = makeEngine()
+
+        engine.setLevel(Level(0.4), for: notion.id)
+        clock.advance(by: .milliseconds(299))
+        #expect(store.saveCount == 0)
+
+        clock.advance(by: .milliseconds(1))
+        #expect(store.saveCount == 1)
+        #expect(store.saved.appSettings[notion.id] == Level(0.4))
+    }
+
+    @Test func changesInQuickSuccessionAreSavedOnceAfterTheLast() {
+        let engine = makeEngine()
+
+        engine.setLevel(Level(0.4), for: notion.id)
+        clock.advance(by: .milliseconds(200))
+        engine.setLevel(Level(0.5), for: notion.id)
+        clock.advance(by: .milliseconds(200))
+        engine.setLevel(Level(0.6), for: notion.id)
+        clock.advance(by: .milliseconds(299))
+        #expect(store.saveCount == 0)
+
+        clock.advance(by: .milliseconds(1))
+        #expect(store.saveCount == 1)
+        #expect(store.saved.appSettings[notion.id] == Level(0.6))
+        clock.advance(by: .seconds(5))
+        #expect(store.saveCount == 1)
+    }
+
+    @Test func savingPendingChangesWritesThemStraightAway() {
+        let engine = makeEngine()
+        engine.setLevel(Level(0.4), for: notion.id)
+
+        engine.savePendingChanges()
+
+        #expect(store.saveCount == 1)
+        #expect(store.saved.appSettings[notion.id] == Level(0.4))
+        clock.advance(by: .seconds(1))
+        #expect(store.saveCount == 1)
+    }
+
+    @Test func withNoPendingChangesNothingIsSaved() {
+        let engine = makeEngine()
+
+        engine.savePendingChanges()
+
+        #expect(store.saveCount == 0)
+    }
+
+    @Test func changingTheDefaultLevelChangesOnlyAppsWithoutAnAppSetting() {
+        let external = DisplayID(2)
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        engine.appActivated(terminal, on: external)
+
+        engine.setDefaultLevel(Level(0.6))
+
+        #expect(engine.defaultLevel == Level(0.6))
+        #expect(backend.levels[builtIn] == Level(0.4))
+        #expect(backend.levels[external] == Level(0.6))
+        #expect(engine.level(for: terminal.id) == Level(0.6))
+    }
+
+    @Test func theDefaultLevelIsSaved() {
+        let engine = makeEngine()
+
+        engine.setDefaultLevel(Level(0.6))
+        clock.advance(by: DimmingEngine.saveDelay)
+
+        #expect(store.saved.defaultLevel == Level(0.6))
+    }
+
+    @Test func useDefaultRemovesTheAppSettingAndTheAppFollowsTheDefaultLevel() {
+        store.saved.defaultLevel = Level(0.7)
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        #expect(engine.hasAppSetting(for: notion.id))
+
+        engine.useDefault(for: notion.id)
+
+        #expect(!engine.hasAppSetting(for: notion.id))
+        #expect(backend.levels[builtIn] == Level(0.7))
+        engine.setDefaultLevel(Level(0.5))
+        #expect(backend.levels[builtIn] == Level(0.5))
+        clock.advance(by: DimmingEngine.saveDelay)
+        #expect(store.saved.appSettings[notion.id] == nil)
+    }
+
+    @Test func settingsSavedOnOneLaunchAreUsedOnTheNext() {
+        let first = makeEngine()
+        first.setLevel(Level(0.4), for: notion.id)
+        first.savePendingChanges()
+
+        let next = makeEngine()
+        next.appActivated(notion, on: builtIn)
+
+        #expect(backend.levels[builtIn] == Level(0.4))
     }
 }

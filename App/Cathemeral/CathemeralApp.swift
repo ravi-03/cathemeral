@@ -16,11 +16,11 @@ struct CathemeralApp: SwiftUI.App {
     }
 }
 
-/// Wires the macOS signals into the engine and restores gamma on the way out.
+/// Wires the macOS signals into the engine, and on the way out saves settings and restores gamma.
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
     let engine = DimmingEngine(
         backend: GammaController(),
-        store: InMemorySettingsStore(),
+        store: FileSettingsStore(),
         clock: SystemClock(),
         selfID: AppID(bundleID: Bundle.main.bundleIdentifier ?? "io.github.ravi-03.cathemeral")
     )
@@ -43,7 +43,10 @@ struct CathemeralApp: SwiftUI.App {
             signal(terminationSignal, SIG_IGN)
             let source = DispatchSource.makeSignalSource(signal: terminationSignal, queue: .main)
             source.setEventHandler { [engine] in
-                MainActor.assumeIsolated { engine.restore() }
+                MainActor.assumeIsolated {
+                    engine.restore()
+                    engine.savePendingChanges()
+                }
                 exit(0)
             }
             source.resume()
@@ -55,5 +58,6 @@ struct CathemeralApp: SwiftUI.App {
     func applicationWillTerminate(_ notification: Notification) {
         activations.stop()
         engine.restore()
+        engine.savePendingChanges()
     }
 }
