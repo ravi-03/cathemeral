@@ -4,9 +4,9 @@
 
 **Blocked by:** 03 (Tracer bullet: frontmost app dims its display)
 
-**Status:** ready-for-human
+**Status:** done
 
-- [ ] Set Notion to 40%, quit, relaunch, bring Notion to the front: the display dims to 40%.
+- [x] Set Notion to 40%, quit, relaunch, bring Notion to the front: the display dims to 40%.
 - [x] Changing the default level changes every app without an app setting. Apps with one keep their own level.
 - [x] "Use default" removes the app setting, and the app then follows the default level.
 - [x] A corrupted settings file is set aside and the app launches with defaults.
@@ -17,3 +17,5 @@
 ## Comments
 
 **2026-11-10 (agent):** Implemented. Covered by tests: default level vs app setting, "Use default", corrupt-file set-aside (`settings-corrupt-<date>.json`; a newer schema version is set aside too), clamp on load, schema version, and debounced saves through the test clock. Pending saves are flushed on quit and on termination signals, after gamma is restored. Left for a human: the Notion 40% quit-and-relaunch check in the real app. Deferred: the PRD's cached display name and timestamp per app setting (ticket 11 can add them with a schema bump), and schema migration (only version 1 exists).
+
+**2026-11-10 (agent):** The Notion 40% quit-and-relaunch check passes by hand (confirmed by the user). All boxes ticked.
