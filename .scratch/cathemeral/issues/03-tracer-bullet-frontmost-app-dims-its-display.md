@@ -8,13 +8,13 @@ The domain rules come from CONTEXT.md and the PRD: apps are identified by bundle
 
 **Blocked by:** 01 (Spike: automated platform checks)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] The project builds, launches as a menu bar app with no Dock icon, and the test suite runs from one command.
 - [x] One `check` script runs build, tests and `swift format lint`, and exits non-zero on any failure. A pre-commit hook and a GitHub Actions job both run it.
 - [x] Bringing an app with a level of 40% to the front dims the built-in display to 40%. Bringing a 100% app to the front restores it.
-- [ ] Opening the popover (Cathemeral itself) or Spotlight leaves the display's level unchanged.
-- [ ] Moving the owner's slider in the popover changes the display live.
+- [x] Opening the popover (Cathemeral itself) or Spotlight leaves the display's level unchanged.
+- [x] Moving the owner's slider in the popover changes the display live.
 - [x] Levels below 10% can't be set.
 - [x] Quit restores the original gamma.
 - [x] DimmingEngine tests, using a recording fake backend, an in-memory store and a test clock, cover: activation makes the owner, ignored apps don't, an app without a setting uses the default level, and the 10% clamp.
@@ -38,7 +38,7 @@ How each box was verified:
   - After quit: 1.0000.
 - **The built app** has `LSUIElement` set, runs as a `UIElement` (no Dock icon) and quits cleanly from an Apple Event and from SIGTERM.
 
-**Still to check by hand (boxes left open):** open the real popover over a dimmed app and confirm the level doesn't change, then drag the owner's slider and watch the display follow. The engine behaviour behind both is covered by tests and by the harness, but the SwiftUI popover itself wasn't clicked.
+**Checked by hand by the user on 2026-11-10 (boxes now ticked):** open the real popover over a dimmed app and confirm the level doesn't change, then drag the owner's slider and watch the display follow. Both work: the level held with the popover open, and the display followed the slider.
 
 Notes for later tickets:
 - **Signals (ticket 09):** SIGTERM, SIGINT and SIGHUP already restore gamma through dispatch signal sources in `AppDelegate`. Ticket 09 only needs to verify that.
