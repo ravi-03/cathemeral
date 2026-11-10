@@ -11,6 +11,13 @@ The screen must never be left dim. See `docs/platform/gamma.md` for how gamma wo
 - **Every level is clamped to the 10% floor** before it reaches a gamma write, including levels loaded from disk, computed during ramps, or set by hotkeys.
 - **Gamma tables are computed by scaling the captured original curve**, never by building a linear ramp. Level 1.0 must give back the original table exactly.
 
+## No flash
+
+Switching apps must never show an app brighter than its own level, or jump. `docs/platform/gamma.md` (Timing) has the measurements behind these rules.
+
+- **Dim early, brighten late.** A switch to a dimmer app dims as soon as macOS announces the activation. A switch to a brighter app waits until that app's window is in front. Any new path that changes a display's level for a switch (hotkeys, display changes, resuming a paused display) keeps this order.
+- **Every fade goes through a `Fader`.** A fade continues from the level on screen, moves at most one refresh along its curve per frame, and shows one frame per refresh. Code that writes a table straight to its target outside a `Fader` is a jump, unless it is a settings change (a slider or "Use default") or there is no display link to fade with.
+
 ## Domain language
 
 - Names in code, tests and logs use the terms in `CONTEXT.md`: **app**, **level**, **display owner**, **ignored app**, **paused display**, **unowned display**, **app setting**, **default level**. Flag any word listed under a term's "_Avoid_" (for example `brightness` for a level, or `activeApp` for a display owner).

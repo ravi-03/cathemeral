@@ -15,7 +15,17 @@ These facts were measured by the ticket 01 spike on an M1 with only the built-in
 - **The screen can't be left dim by a crash.** When the app dies, macOS restores the screen itself.
 - **Restoring a hung app's gamma from outside needs a restorer.** The restorer is a one-shot process that writes each display's current table back unchanged and exits. Its exit triggers the reset. The watchdog spawns it on a heartbeat timeout (ticket 09). The watchdog itself never writes gamma, because then its own exit would reset the app's dimming.
 - **Our dimming is silently wiped when any other gamma writer exits** (f.lux, Lunar, a calibration tool, the restorer). Nothing notifies the app. While a display is dimmed, re-check its table on the 1 Hz tick. A table equal to the captured original means it was reset: re-apply silently. Any other table counts as a mismatch toward pausing the display (ticket 10).
-- **Writes can block.** One `CGSetDisplayTransferByTable` call takes about 0.06 ms back-to-back, but up to about 10 ms when writes are spaced out. Keep writes off the main actor.
+- **Writes can block.** One `CGSetDisplayTransferByTable` call takes about 0.06 ms back-to-back, but often 5–15 ms and up to about 30 ms when writes are spaced out or WindowServer is busy with an app switch. Keep writes off the main actor.
+
+## Timing
+
+Measured with `Tools/switch-timing` during tickets 04 and 05, on the built-in 60 Hz display of a MacBook Air, macOS 27.2. Each fact cost a debugging round to find.
+
+- **An activation is announced before its window comes forward.** `NSWorkspace.didActivateApplicationNotification` arrives 20–70 ms before the app's window is topmost in the on-screen window list (Notion to iTerm2: 52–71 ms; iTerm2 to Notion: 18–38 ms). A gamma write made on the notification shows the old app's window at the new level for those frames. This is why the engine dims on the announcement and brightens only once the window is in front.
+- **A write shows from the first refresh after the call returns.** Only the last table written before a refresh is ever seen, so two writes inside one refresh lose the first, and a write that returns after its refresh shows one refresh late.
+- **The first display link is slow to create.** The first `NSScreen.displayLink` in a process took 81 ms, blocking the main thread. After that, the link reports a steady refresh (16.67 ms here), and a paused link's first tick can be up to two refreshes away.
+- **Gamma reads stall too.** While WindowServer is busy with an app switch, `CGGetDisplayTransferByTable` from another process can block for about 50 ms, so a probe can miss frames. Check the time between samples before calling a big step a jump.
+- **Fast `open -b` bursts confuse the frontmost app.** Opening two apps 60 ms apart can leave `NSWorkspace.frontmostApplication` naming one app while the other's window is on top. Read the window list, not the frontmost app, when a check needs to know what is showing.
 
 ## Checking it on this Mac
 
