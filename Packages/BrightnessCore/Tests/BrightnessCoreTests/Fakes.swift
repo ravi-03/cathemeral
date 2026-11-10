@@ -1,8 +1,8 @@
 import BrightnessCore
 
-/// Records every level the engine hands to the screen, per display.
+/// Records every level the engine hands to the screen, per display, with how long it ramps over.
 @MainActor final class RecordingBackend: BrightnessBackend {
-    private(set) var applied: [(display: DisplayID, level: Level)] = []
+    private(set) var applied: [(display: DisplayID, level: Level, ramp: Duration)] = []
     private(set) var restoreCount = 0
 
     /// The last level applied to each display.
@@ -10,8 +10,13 @@ import BrightnessCore
         applied.reduce(into: [:]) { $0[$1.display] = $1.level }
     }
 
-    func apply(_ level: Level, to display: DisplayID) {
-        applied.append((display, level))
+    /// How long the last change to each display ramps over.
+    var ramps: [DisplayID: Duration] {
+        applied.reduce(into: [:]) { $0[$1.display] = $1.ramp }
+    }
+
+    func apply(_ level: Level, to display: DisplayID, over ramp: Duration) {
+        applied.append((display, level, ramp))
     }
 
     func restore() {

@@ -9,6 +9,10 @@ import Observation
     @ObservationIgnored private let ignoredApps: Set<AppID>
     @ObservationIgnored private var pendingSave: (any ScheduledAction)?
 
+    /// How long a change caused by switching apps fades over. Settings changes, such as a slider
+    /// drag, apply straight away.
+    public static let switchRamp = Duration.milliseconds(150)
+
     /// How long the engine waits after the last change before saving, so dragging a slider
     /// writes the file once.
     public static let saveDelay = Duration.milliseconds(300)
@@ -44,7 +48,7 @@ import Observation
         guard !ignoredApps.contains(app.id) else { return }
         let level = level(for: app.id)
         if level < shown[display, default: .full] {
-            show(level, on: display)
+            show(level, on: display, over: Self.switchRamp)
         }
     }
 
@@ -53,11 +57,11 @@ import Observation
     public func appActivated(_ app: App, on display: DisplayID) {
         guard !ignoredApps.contains(app.id) else { return }
         owners[display] = app
-        show(level(for: app.id), on: display)
+        show(level(for: app.id), on: display, over: Self.switchRamp)
         // A display dimmed early for this app may not be where its window ended up.
         for (other, level) in shown where other != display {
             let target = owners[other].map { self.level(for: $0.id) } ?? .full
-            if level != target { show(target, on: other) }
+            if level != target { show(target, on: other, over: Self.switchRamp) }
         }
     }
 
@@ -107,16 +111,17 @@ import Observation
         backend.restore()
     }
 
-    private func show(_ level: Level, on display: DisplayID) {
+    private func show(_ level: Level, on display: DisplayID, over ramp: Duration) {
         shown[display] = level
-        backend.apply(level, to: display)
+        backend.apply(level, to: display, over: ramp)
     }
 
-    /// Shows each owner's current level, and saves the settings once the save delay passes with no
+    /// Shows each owner's new level straight away, and saves the settings once the save delay passes with no
     /// further change.
     private func settingsChanged() {
-        for (display, owner) in owners {
-            show(level(for: owner.id), on: display)
+        // Only displays whose level changed, so a display still fading after a switch isn't cut short.
+        for (display, owner) in owners where shown[display] != level(for: owner.id) {
+            show(level(for: owner.id), on: display, over: .zero)
         }
         pendingSave?.cancel()
         pendingSave = clock.schedule(after: Self.saveDelay) { [weak self] in

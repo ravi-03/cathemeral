@@ -275,4 +275,82 @@ import Testing
 
         #expect(backend.levels[builtIn] == .full)
     }
+
+    @Test func bringingAnAppToTheFrontFadesToItsLevel() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+
+        engine.appActivated(notion, on: builtIn)
+
+        #expect(backend.levels[builtIn] == Level(0.4))
+        #expect(backend.ramps[builtIn] == DimmingEngine.switchRamp)
+        #expect(DimmingEngine.switchRamp == .milliseconds(150))
+    }
+
+    @Test func dimmingEarlyForASwitchFades() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(terminal, on: builtIn)
+
+        engine.appActivating(notion, on: builtIn)
+
+        #expect(backend.ramps[builtIn] == DimmingEngine.switchRamp)
+    }
+
+    @Test func aDisplayDimmedEarlyForAnAppThatEndsUpElsewhereFadesBack() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(terminal, on: builtIn)
+
+        engine.appActivating(notion, on: builtIn)
+        engine.appActivated(notion, on: DisplayID(2))
+
+        #expect(backend.levels[builtIn] == .full)
+        #expect(backend.ramps[builtIn] == DimmingEngine.switchRamp)
+    }
+
+    @Test func slidingTheOwnersLevelAppliesStraightAway() {
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+
+        engine.setLevel(Level(0.55), for: notion.id)
+
+        #expect(backend.levels[builtIn] == Level(0.55))
+        #expect(backend.ramps[builtIn] == .zero)
+    }
+
+    @Test func slidingTheDefaultLevelAppliesStraightAway() {
+        let engine = makeEngine()
+        engine.appActivated(terminal, on: builtIn)
+
+        engine.setDefaultLevel(Level(0.6))
+
+        #expect(backend.levels[builtIn] == Level(0.6))
+        #expect(backend.ramps[builtIn] == .zero)
+    }
+
+    @Test func useDefaultAppliesStraightAway() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+
+        engine.useDefault(for: notion.id)
+
+        #expect(backend.levels[builtIn] == .full)
+        #expect(backend.ramps[builtIn] == .zero)
+    }
+
+    @Test func aSettingsChangeLeavesDisplaysItDoesNotAffectAlone() {
+        let external = DisplayID(2)
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        engine.appActivated(terminal, on: external)
+        let before = backend.applied.count
+
+        engine.setLevel(Level(0.3), for: notion.id)
+
+        #expect(backend.applied.count == before + 1)
+        #expect(backend.applied.last?.display == builtIn)
+    }
 }

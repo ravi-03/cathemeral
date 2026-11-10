@@ -28,4 +28,21 @@ import Testing
         #expect(table.red == original.red.map { $0 * 0.1 })
         #expect(table.red.last! > 0)
     }
+
+    @Test func aFadeBackToFullEndsOnTheOriginalByteForByte() throws {
+        let start = ContinuousClock.now
+        var fader = Fader(at: Level(0.4))
+        fader.fade(to: .full, over: .milliseconds(150))
+
+        // Each frame scales the original, never the previous frame, so nothing builds up.
+        var frame = original
+        for refresh in 1...12 where fader.isFading {
+            let level = fader.nextFrame(shownAt: start + .milliseconds(refresh * 16), refresh: .milliseconds(16))
+            frame = original.scaled(to: try #require(level))
+        }
+
+        #expect(frame.red.map(\.bitPattern) == original.red.map(\.bitPattern))
+        #expect(frame.green.map(\.bitPattern) == original.green.map(\.bitPattern))
+        #expect(frame.blue.map(\.bitPattern) == original.blue.map(\.bitPattern))
+    }
 }
