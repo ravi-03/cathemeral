@@ -25,9 +25,10 @@ func say(_ line: String) {
         backend: GammaController(), store: InMemorySettingsStore(), clock: SystemClock(),
         selfID: AppID(bundleID: "cathemeral.harness"))
     private var signalSources: [any DispatchSourceSignal] = []
-    private lazy var activations = ActivationMonitor { [unowned self] app, display in
-        report(app, on: display)
-    }
+    private lazy var activations = ActivationMonitor(
+        onActivating: { [unowned self] app, display in engine.appActivating(app, on: display) },
+        onActivation: { [unowned self] app, display in report(app, on: display) }
+    )
 
     func start() {
         for terminationSignal in [SIGTERM, SIGINT, SIGHUP] {

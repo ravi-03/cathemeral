@@ -14,6 +14,9 @@ import Observation
     public static let saveDelay = Duration.milliseconds(300)
 
     private var owners: [DisplayID: App] = [:]
+
+    /// The level last handed to the backend for each display.
+    @ObservationIgnored private var shown: [DisplayID: Level] = [:]
     private var settings: Settings
 
     /// - Parameter selfID: Cathemeral's own app ID. Cathemeral is an ignored app.
@@ -30,12 +33,32 @@ import Observation
         owners[display]
     }
 
-    /// `app` was brought to the front with its key window on `display`.
+    /// macOS has started bringing `app` to the front, most likely on `display`, but its window may
+    /// not be showing there yet. Follow with `appActivated` once it is.
+    ///
+    /// If the app's level is dimmer than the display shows now, the display dims straight away;
+    /// a brighter level waits for `appActivated`. Either way nothing is ever shown brighter than its
+    /// own level: dimming early only darkens the old app's window for a moment, while brightening
+    /// early would flash it bright. An ignored app changes nothing.
+    public func appActivating(_ app: App, on display: DisplayID) {
+        guard !ignoredApps.contains(app.id) else { return }
+        let level = level(for: app.id)
+        if level < shown[display, default: .full] {
+            show(level, on: display)
+        }
+    }
+
+    /// `app` is in front with its key window on `display`. It becomes the display owner.
     /// An ignored app changes nothing.
     public func appActivated(_ app: App, on display: DisplayID) {
         guard !ignoredApps.contains(app.id) else { return }
         owners[display] = app
-        backend.apply(level(for: app.id), to: display)
+        show(level(for: app.id), on: display)
+        // A display dimmed early for this app may not be where its window ended up.
+        for (other, level) in shown where other != display {
+            let target = owners[other].map { self.level(for: $0.id) } ?? .full
+            if level != target { show(target, on: other) }
+        }
     }
 
     /// Saves `level` as the app's app setting. If the app owns a display, the display shows the new
@@ -84,11 +107,16 @@ import Observation
         backend.restore()
     }
 
+    private func show(_ level: Level, on display: DisplayID) {
+        shown[display] = level
+        backend.apply(level, to: display)
+    }
+
     /// Shows each owner's current level, and saves the settings once the save delay passes with no
     /// further change.
     private func settingsChanged() {
         for (display, owner) in owners {
-            backend.apply(level(for: owner.id), to: display)
+            show(level(for: owner.id), on: display)
         }
         pendingSave?.cancel()
         pendingSave = clock.schedule(after: Self.saveDelay) { [weak self] in

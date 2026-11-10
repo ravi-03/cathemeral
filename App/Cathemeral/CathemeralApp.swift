@@ -25,9 +25,10 @@ struct CathemeralApp: SwiftUI.App {
         selfID: AppID(bundleID: Bundle.main.bundleIdentifier ?? "io.github.ravi-03.cathemeral")
     )
 
-    private lazy var activations = ActivationMonitor { [engine] app, display in
-        engine.appActivated(app, on: display)
-    }
+    private lazy var activations = ActivationMonitor(
+        onActivating: { [engine] app, display in engine.appActivating(app, on: display) },
+        onActivation: { [engine] app, display in engine.appActivated(app, on: display) }
+    )
 
     /// Kept alive so termination signals keep being handled.
     private var signalSources: [any DispatchSourceSignal] = []

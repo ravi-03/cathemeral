@@ -2,7 +2,7 @@
 # Checks dimming end to end on the real built-in display: the real engine, gamma controller and
 # activation monitor, with every result read back by `peek`, a separate process that never
 # writes gamma. It switches between Terminal and Finder, so it takes over the screen for about
-# 10 seconds. Not part of scripts/check.
+# 15 seconds. Not part of scripts/check.
 #
 # Exits non-zero on the first wrong reading. Every way out ends the harness, and macOS resets
 # a gamma writer's tables when it exits, so the screen is never left dim.
@@ -46,6 +46,9 @@ open -b com.apple.finder
 expect "100% app in front" 1.0000
 open -b com.apple.Terminal
 expect "40% app in front again" 0.4000
+echo "--- switch timing (dim by the time the new app's window is in front, brighten only after)"
+"$bin/switch-timing" com.apple.finder com.apple.Terminal 2 || failures=$((failures + 1))
+expect "40% app in front after switching" 0.4000
 echo "activate com.apple.Spotlight" >&3
 expect "Spotlight leaves the level" 0.4000
 echo "activate cathemeral.harness" >&3

@@ -213,4 +213,66 @@ import Testing
 
         #expect(backend.levels[builtIn] == Level(0.4))
     }
+
+    @Test func switchingToADimmerAppDimsAsSoonAsTheSwitchStarts() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(terminal, on: builtIn)
+
+        engine.appActivating(notion, on: builtIn)
+
+        #expect(backend.levels[builtIn] == Level(0.4))
+        #expect(engine.owner(of: builtIn) == terminal)
+        engine.appActivated(notion, on: builtIn)
+        #expect(engine.owner(of: builtIn) == notion)
+        #expect(backend.levels[builtIn] == Level(0.4))
+    }
+
+    @Test func switchingToABrighterAppWaitsUntilItsWindowIsInFront() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+
+        engine.appActivating(terminal, on: builtIn)
+
+        #expect(backend.levels[builtIn] == Level(0.4))
+        engine.appActivated(terminal, on: builtIn)
+        #expect(backend.levels[builtIn] == .full)
+    }
+
+    @Test func anIgnoredAppStartingASwitchChangesNothing() {
+        store.saved.appSettings[cathemeral.id] = Level(0.2)
+        let engine = makeEngine()
+        engine.appActivated(terminal, on: builtIn)
+
+        engine.appActivating(cathemeral, on: builtIn)
+
+        #expect(backend.levels[builtIn] == .full)
+    }
+
+    @Test func aDisplayDimmedEarlyForAnAppThatEndsUpElsewhereGoesBackToItsOwnersLevel() {
+        let external = DisplayID(2)
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(terminal, on: builtIn)
+
+        engine.appActivating(notion, on: builtIn)
+        engine.appActivated(notion, on: external)
+
+        #expect(engine.owner(of: builtIn) == terminal)
+        #expect(backend.levels[builtIn] == .full)
+        #expect(backend.levels[external] == Level(0.4))
+    }
+
+    @Test func aSwitchThatIsReplacedBeforeItsWindowComesForwardLeavesNoEarlyDimming() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(terminal, on: builtIn)
+
+        engine.appActivating(notion, on: builtIn)
+        engine.appActivating(terminal, on: builtIn)
+        engine.appActivated(terminal, on: builtIn)
+
+        #expect(backend.levels[builtIn] == .full)
+    }
 }

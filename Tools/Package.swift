@@ -19,5 +19,6 @@ let package = Package(
             ]
         ),
         .executableTarget(name: "peek"),
+        .executableTarget(name: "switch-timing"),
     ]
 )
