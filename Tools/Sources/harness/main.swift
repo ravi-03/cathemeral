@@ -58,7 +58,9 @@ func say(_ line: String) {
         }
     }
 
-    func restoreAndExit(_ why: String) -> Never {
+    /// Returns `Void`, not `Never`: Swift 6.2 (Xcode 26) can't infer `assumeIsolated { … }` around a
+    /// `Never` call.
+    func restoreAndExit(_ why: String) {
         engine.restore()
         say("restored (\(why))")
         exit(0)
