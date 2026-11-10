@@ -4,11 +4,11 @@
 
 **Blocked by:** 03 (Tracer bullet: frontmost app dims its display)
 
-**Status:** ready-for-human
+**Status:** done
 
-- [ ] Switching between a 40% app and a 100% app visibly fades instead of flashing.
-- [ ] Rapid Cmd-Tab back and forth never jumps in brightness.
-- [ ] Slider drags still apply immediately.
+- [x] Switching between a 40% app and a 100% app visibly fades instead of flashing.
+- [x] Rapid Cmd-Tab back and forth never jumps in brightness.
+- [x] Slider drags still apply immediately.
 - [x] Gamma maths tests cover the ramp curve's endpoints, and show an interrupted ramp continuing from the current level.
 - [x] Each frame is computed from the original curve and never compounds on the previous frame.
 
@@ -25,3 +25,5 @@
 Left for a human: watch a 40% to 100% switch fade, hold Cmd-Tab back and forth (the tool uses `open`, not Cmd-Tab), and drag the popover slider to check it still applies immediately.
 
 Later tickets: re-applying after display changes (07) should call `restore()` first, which now clears all per-display state. Hotkeys (12) need a ramped entry point in the engine, because `setLevel` applies straight away.
+
+**2026-11-10 (agent):** The fade, rapid Cmd-Tab and slider checks pass by hand (confirmed by the user). All boxes ticked.
