@@ -163,7 +163,6 @@ import Testing
     }
 
     @Test func changingTheDefaultLevelChangesOnlyAppsWithoutAnAppSetting() {
-        let external = DisplayID(2)
         store.saved.appSettings[notion.id] = Level(0.4)
         let engine = makeEngine()
         engine.appActivated(notion, on: builtIn)
@@ -251,7 +250,6 @@ import Testing
     }
 
     @Test func aDisplayDimmedEarlyForAnAppThatEndsUpElsewhereGoesBackToItsOwnersLevel() {
-        let external = DisplayID(2)
         store.saved.appSettings[notion.id] = Level(0.4)
         let engine = makeEngine()
         engine.appActivated(terminal, on: builtIn)
@@ -341,7 +339,6 @@ import Testing
     }
 
     @Test func aSettingsChangeLeavesDisplaysItDoesNotAffectAlone() {
-        let external = DisplayID(2)
         store.saved.appSettings[notion.id] = Level(0.4)
         let engine = makeEngine()
         engine.appActivated(notion, on: builtIn)
@@ -352,5 +349,106 @@ import Testing
 
         #expect(backend.applied.count == before + 1)
         #expect(backend.applied.last?.display == builtIn)
+    }
+
+    // MARK: Multiple displays
+
+    @Test func eachDisplayKeepsItsOwnOwnerWhenFocusMovesToAnotherDisplay() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        store.saved.appSettings[safari.id] = .full
+        let engine = makeEngine()
+        engine.appActivated(notion, on: external)
+
+        engine.appActivating(safari, on: builtIn)
+        engine.appActivated(safari, on: builtIn)
+
+        #expect(engine.owner(of: external) == notion)
+        #expect(engine.owner(of: builtIn) == safari)
+        #expect(backend.levels[external] == Level(0.4))
+        #expect(backend.levels[builtIn] == .full)
+    }
+
+    @Test func afterADisplayChangeEveryOwnedDisplayIsReappliedWithoutARamp() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        store.saved.appSettings[terminal.id] = Level(0.7)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: external)
+        engine.appActivated(terminal, on: builtIn)
+        let before = backend.applied.count
+
+        engine.displaysChanged(to: [builtIn, external])
+
+        #expect(backend.restoreCount == 1)
+        let reapplied = backend.applied.dropFirst(before)
+        #expect(Set(reapplied.map(\.display)) == [builtIn, external])
+        #expect(reapplied.allSatisfy { $0.ramp == .zero })
+        #expect(backend.levels[external] == Level(0.4))
+        #expect(backend.levels[builtIn] == Level(0.7))
+    }
+
+    @Test func aRemovedDisplayIsDroppedAndNoLongerWritten() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: external)
+        engine.appActivated(terminal, on: builtIn)
+        let before = backend.applied.count
+
+        engine.displaysChanged(to: [builtIn])
+
+        #expect(engine.owner(of: external) == nil)
+        #expect(engine.displays == [builtIn])
+        #expect(!backend.applied.dropFirst(before).contains { $0.display == external })
+        engine.setLevel(Level(0.3), for: notion.id)
+        #expect(!backend.applied.dropFirst(before).contains { $0.display == external })
+    }
+
+    // MARK: Lock, other users and sleep
+
+    @Test func whileSuspendedEveryDisplayIsRestoredAndNothingIsWritten() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+
+        engine.setSuspended(true)
+        let afterSuspend = backend.applied.count
+        engine.appActivating(terminal, on: builtIn)
+        engine.appActivated(terminal, on: builtIn)
+        engine.setLevel(Level(0.3), for: terminal.id)
+
+        #expect(backend.restoreCount == 1)
+        #expect(backend.applied.count == afterSuspend)
+        #expect(engine.owner(of: builtIn) == terminal)
+    }
+
+    @Test func onReturnEveryOwnedDisplayFadesBackToItsOwnersLevel() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        engine.appActivated(terminal, on: external)
+        engine.setSuspended(true)
+        engine.setLevel(Level(0.6), for: terminal.id)
+        let before = backend.applied.count
+
+        engine.setSuspended(false)
+
+        let reapplied = backend.applied.dropFirst(before)
+        #expect(Set(reapplied.map(\.display)) == [builtIn, external])
+        #expect(reapplied.allSatisfy { $0.ramp == DimmingEngine.switchRamp })
+        #expect(backend.levels[builtIn] == Level(0.4))
+        #expect(backend.levels[external] == Level(0.6))
+    }
+
+    @Test func aDisplayChangeWhileSuspendedWaitsForTheReturnToReapply() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        engine.setSuspended(true)
+        let before = backend.applied.count
+
+        engine.displaysChanged(to: [builtIn])
+        #expect(backend.applied.count == before)
+
+        engine.setSuspended(false)
+        #expect(backend.levels[builtIn] == Level(0.4))
     }
 }

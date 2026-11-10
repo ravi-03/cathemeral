@@ -17,15 +17,27 @@ import Observation
     /// writes the file once.
     public static let saveDelay = Duration.milliseconds(300)
 
+    /// The online displays, in the order macOS lists them.
+    public private(set) var displays: [DisplayID]
+
     private var owners: [DisplayID: App] = [:]
 
-    /// The level last handed to the backend for each display.
+    /// The level each display shows, or would show if the engine weren't suspended.
     @ObservationIgnored private var shown: [DisplayID: Level] = [:]
+
+    /// While suspended, every display keeps its original curve and nothing is written.
+    @ObservationIgnored private var isSuspended = false
     private var settings: Settings
 
-    /// - Parameter selfID: Cathemeral's own app ID. Cathemeral is an ignored app.
-    public init(backend: BrightnessBackend, store: SettingsStore, clock: DimmingClock, selfID: AppID) {
+    /// - Parameters:
+    ///   - selfID: Cathemeral's own app ID. Cathemeral is an ignored app.
+    ///   - displays: the displays online at launch. Later changes arrive through `displaysChanged`.
+    public init(
+        backend: BrightnessBackend, store: SettingsStore, clock: DimmingClock, selfID: AppID,
+        displays: [DisplayID] = []
+    ) {
         self.backend = backend
+        self.displays = displays
         self.store = store
         self.clock = clock
         ignoredApps = IgnoredApps.system.union([selfID])
@@ -62,6 +74,30 @@ import Observation
         for (other, level) in shown where other != display {
             let target = owners[other].map { self.level(for: $0.id) } ?? .full
             if level != target { show(target, on: other, over: Self.switchRamp) }
+        }
+    }
+
+    /// Displays were added, removed or reconfigured, or the Mac woke up. macOS may have reset every
+    /// display's curve, so the backend restores and re-captures each original, and every owned
+    /// display is shown at its owner's level again, straight away rather than fading.
+    public func displaysChanged(to online: [DisplayID]) {
+        displays = online
+        owners = owners.filter { online.contains($0.key) }
+        backend.restore()
+        showEveryOwnersLevel(over: .zero)
+    }
+
+    /// While the screen is locked, another user is active or the Mac is asleep, every display goes
+    /// back to its original curve, so the login window is never dimmed. Ownership and settings
+    /// keep changing as usual. When the engine stops being suspended, every owned display fades
+    /// from its original curve back to its owner's level.
+    public func setSuspended(_ suspended: Bool) {
+        guard suspended != isSuspended else { return }
+        isSuspended = suspended
+        if suspended {
+            backend.restore()
+        } else {
+            showEveryOwnersLevel(over: Self.switchRamp)
         }
     }
 
@@ -113,7 +149,16 @@ import Observation
 
     private func show(_ level: Level, on display: DisplayID, over ramp: Duration) {
         shown[display] = level
-        backend.apply(level, to: display, over: ramp)
+        if !isSuspended { backend.apply(level, to: display, over: ramp) }
+    }
+
+    /// Shows every owned display at its owner's level, for a backend that has just been restored.
+    /// Unowned displays already show their original curve.
+    private func showEveryOwnersLevel(over ramp: Duration) {
+        shown = [:]
+        for (display, owner) in owners {
+            show(level(for: owner.id), on: display, over: ramp)
+        }
     }
 
     /// Shows each owner's new level straight away, and saves the settings once the save delay passes with no

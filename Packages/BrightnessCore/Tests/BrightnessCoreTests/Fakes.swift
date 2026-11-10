@@ -62,8 +62,10 @@ import BrightnessCore
 }
 
 let builtIn = DisplayID(1)
+let external = DisplayID(2)
 let cathemeral = App(id: AppID(bundleID: "io.github.ravi-03.cathemeral"), name: "Cathemeral")
 let notion = App(id: AppID(bundleID: "notion.id"), name: "Notion")
+let safari = App(id: AppID(bundleID: "com.apple.Safari"), name: "Safari")
 let terminal = App(id: AppID(bundleID: "com.apple.Terminal"), name: "Terminal")
 
 /// Holds settings in memory and records every save.

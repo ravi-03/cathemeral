@@ -79,7 +79,7 @@ import os
     }
 
     private func makeLink(for display: DisplayID) -> CADisplayLink? {
-        guard let screen = NSScreen.screens.first(where: { $0.displayID == display }) else { return nil }
+        guard let screen = Displays.screen(showing: display) else { return nil }
         let target = LinkTarget { [weak self] link in self?.tick(display, link) }
         let link = screen.displayLink(target: target, selector: #selector(LinkTarget.tick(_:)))
         link.isPaused = true
@@ -195,12 +195,5 @@ private final class TableWriter: Sendable {
 
     @objc func tick(_ link: CADisplayLink) {
         onTick(link)
-    }
-}
-
-extension NSScreen {
-    /// The CoreGraphics display this screen shows.
-    fileprivate var displayID: DisplayID? {
-        (deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber).map { DisplayID($0.uint32Value) }
     }
 }

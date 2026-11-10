@@ -8,7 +8,7 @@ struct CathemeralApp: SwiftUI.App {
 
     var body: some Scene {
         MenuBarExtra {
-            PopoverView(engine: appDelegate.engine, display: Displays.builtIn)
+            PopoverView(engine: appDelegate.engine)
         } label: {
             Image(systemName: "sun.max")
         }
@@ -22,7 +22,8 @@ struct CathemeralApp: SwiftUI.App {
         backend: GammaController(),
         store: FileSettingsStore(),
         clock: SystemClock(),
-        selfID: AppID(bundleID: Bundle.main.bundleIdentifier ?? "io.github.ravi-03.cathemeral")
+        selfID: AppID(bundleID: Bundle.main.bundleIdentifier ?? "io.github.ravi-03.cathemeral"),
+        displays: Displays.active
     )
 
     private lazy var activations = ActivationMonitor(
@@ -30,11 +31,17 @@ struct CathemeralApp: SwiftUI.App {
         onActivation: { [engine] app, display in engine.appActivated(app, on: display) }
     )
 
+    private lazy var displayMonitor = DisplayMonitor(
+        onDisplaysChanged: { [engine] online in engine.displaysChanged(to: online) },
+        onSuspendedChanged: { [engine] suspended in engine.setSuspended(suspended) }
+    )
+
     /// Kept alive so termination signals keep being handled.
     private var signalSources: [any DispatchSourceSignal] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         restoreOnTerminationSignals()
+        displayMonitor.start()
         activations.start()
     }
 
@@ -58,6 +65,7 @@ struct CathemeralApp: SwiftUI.App {
     /// Every normal quit (the Quit button, Cmd-Q, logout) passes through here.
     func applicationWillTerminate(_ notification: Notification) {
         activations.stop()
+        displayMonitor.stop()
         engine.restore()
         engine.savePendingChanges()
     }

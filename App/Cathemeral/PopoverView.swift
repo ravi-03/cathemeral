@@ -1,16 +1,18 @@
 import AppKit
 import BrightnessCore
+import BrightnessPlatform
 import SwiftUI
 
-/// The menu bar popover: one card for the built-in display, the default level, and Quit.
+/// The menu bar popover: one card per display, the default level, and Quit.
 struct PopoverView: View {
     let engine: DimmingEngine
-    let display: DisplayID
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            DisplayCard(engine: engine, display: display)
-            Divider()
+            ForEach(engine.displays, id: \.self) { display in
+                DisplayCard(engine: engine, display: display)
+                Divider()
+            }
             DefaultLevelSlider(engine: engine)
             Divider()
             Button("Quit Cathemeral") { NSApp.terminate(nil) }
@@ -28,7 +30,7 @@ struct DisplayCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Built-in Display")
+            Text(Displays.name(of: display))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             if let owner = engine.owner(of: display) {

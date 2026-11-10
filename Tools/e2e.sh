@@ -57,6 +57,17 @@ echo "set com.apple.Terminal 0.55" >&3
 expect "owner's level changes live" 0.5500
 echo "set com.apple.Terminal 0.02" >&3
 expect "level below the floor" 0.1000
+echo "set com.apple.Terminal 0.4" >&3
+echo "displays-changed" >&3
+expect "display change re-captures the original and re-applies" 0.4000
+echo "displays-changed" >&3
+expect "a second display change doesn't dim twice" 0.4000
+echo "suspend" >&3
+expect "suspended (screen locked) shows the original curve" 1.0000
+echo "set com.apple.Terminal 0.5" >&3
+expect "a change while suspended isn't shown" 1.0000
+echo "unsuspend" >&3
+expect "unlocking re-applies the owner's level" 0.5000
 echo "quit" >&3
 wait "$harness"
 expect "after quit" 1.0000

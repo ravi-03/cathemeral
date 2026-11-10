@@ -1,6 +1,6 @@
+import AppKit
 import BrightnessCore
 import CoreGraphics
-import Foundation
 
 /// Finds displays.
 public enum Displays {
@@ -10,7 +10,31 @@ public enum Displays {
     /// The built-in display, or the main display if there is no built-in one (a closed laptop or a
     /// desktop Mac).
     public static var builtIn: DisplayID {
-        online.first { CGDisplayIsBuiltin($0.rawValue) != 0 } ?? main
+        online.first(where: isBuiltIn) ?? main
+    }
+
+    /// "Built-in" for the built-in display, otherwise the monitor's name as macOS shows it.
+    @MainActor public static func name(of display: DisplayID) -> String {
+        if isBuiltIn(display) { return "Built-in" }
+        return screen(showing: display)?.localizedName ?? "Display \(display.rawValue)"
+    }
+
+    /// The displays drawing right now, one per mirrored set. Leaves out asleep displays and the
+    /// extra members of a mirrored set, which `online` includes.
+    public static var active: [DisplayID] {
+        var ids = [CGDirectDisplayID](repeating: 0, count: 32)
+        var count: UInt32 = 0
+        guard CGGetActiveDisplayList(UInt32(ids.count), &ids, &count) == .success else { return [] }
+        return ids.prefix(Int(count)).map(DisplayID.init)
+    }
+
+    /// The screen AppKit uses for `display`, or nil if it has none (asleep, or mirrored).
+    @MainActor static func screen(showing display: DisplayID) -> NSScreen? {
+        NSScreen.screens.first { $0.displayID == display }
+    }
+
+    private static func isBuiltIn(_ display: DisplayID) -> Bool {
+        CGDisplayIsBuiltin(display.rawValue) != 0
     }
 
     public static var online: [DisplayID] {
@@ -61,5 +85,12 @@ public enum Displays {
     private static func overlap(_ bounds: CGRect, _ display: DisplayID) -> CGFloat {
         let shared = bounds.intersection(CGDisplayBounds(display.rawValue))
         return shared.isNull ? 0 : shared.width * shared.height
+    }
+}
+
+extension NSScreen {
+    /// The CoreGraphics display this screen shows.
+    fileprivate var displayID: DisplayID? {
+        (deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber).map { DisplayID($0.uint32Value) }
     }
 }

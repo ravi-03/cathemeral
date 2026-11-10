@@ -5,6 +5,9 @@
 //   activate <bundle-id>         report an activation directly, as if that app came to the front
 //                                on the built-in display (use for ignored apps like Spotlight,
 //                                which `open` can't bring forward)
+//   displays-changed             report a display change, as after plugging in a monitor or waking
+//   suspend                      suspend dimming, as when the screen locks
+//   unsuspend                    stop suspending, as when the screen unlocks (fades back)
 //   quit                         restore gamma and exit
 //
 // It prints `READY` once listening, then one line per event. Gamma is restored on `quit`, on
@@ -23,7 +26,7 @@ func say(_ line: String) {
 @MainActor final class Harness {
     private let engine = DimmingEngine(
         backend: GammaController(), store: InMemorySettingsStore(), clock: SystemClock(),
-        selfID: AppID(bundleID: "cathemeral.harness"))
+        selfID: AppID(bundleID: "cathemeral.harness"), displays: Displays.active)
     private var signalSources: [any DispatchSourceSignal] = []
     private lazy var activations = ActivationMonitor(
         onActivating: { [unowned self] app, display in engine.appActivating(app, on: display) },
@@ -52,6 +55,16 @@ func say(_ line: String) {
         case ("activate", 2):
             let id = AppID(bundleID: String(command[1]))
             report(App(id: id, name: id.rawValue), on: Displays.builtIn)
+        case ("displays-changed", 1):
+            let active = Displays.active
+            engine.displaysChanged(to: active)
+            say("displays changed: \(active.map(\.description).joined(separator: ", "))")
+        case ("suspend", 1):
+            engine.setSuspended(true)
+            say("suspended")
+        case ("unsuspend", 1):
+            engine.setSuspended(false)
+            say("unsuspended")
         case ("quit", 1):
             restoreAndExit("quit")
         default:
