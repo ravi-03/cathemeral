@@ -1,15 +1,37 @@
 #!/usr/bin/env bash
-# Runs everything a change must pass: format lint, tests and the app build.
+# Runs everything a change must pass: format lint, the gamma-writer rule, tests, and the builds.
 # Exits non-zero on the first failure. Run by the pre-commit hook and by CI.
 #
 # None of these steps writes gamma, so a failure can't leave the screen dim.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-swift_sources=(App Packages/*/Sources Packages/*/Tests Packages/*/Package.swift)
+# Turn on the pre-commit hook in a clone that doesn't have it yet.
+if [[ -d .git && -z "$(git config core.hooksPath || true)" ]]; then
+    git config core.hooksPath .githooks
+    echo "==> pre-commit hook enabled (core.hooksPath = .githooks)"
+fi
+
+swift_sources=(App Packages/*/Sources Packages/*/Tests Packages/*/Package.swift Tools/Sources Tools/Package.swift)
 
 echo "==> swift format lint"
 swift format lint --strict --recursive "${swift_sources[@]}"
+
+# Only the gamma backend touches the screen (PRD Architecture, ADR 0001), and the watchdog never
+# writes gamma (CODING_STANDARDS.md). Add a file here only if it is a gamma backend or the
+# one-shot restorer.
+echo "==> gamma writes only in allowed files"
+allowed_gamma_writers=(
+    Packages/BrightnessPlatform/Sources/BrightnessPlatform/GammaController.swift
+)
+gamma_writes='CGSetDisplayTransferBy(Table|Formula|ByteTable)|CGDisplayRestoreColorSyncSettings'
+offenders=$(grep -rlE "$gamma_writes" --include='*.swift' App Packages Tools \
+    | grep -vxF "$(printf '%s\n' "${allowed_gamma_writers[@]}")" || true)
+if [[ -n "$offenders" ]]; then
+    echo "Gamma is written outside the allowed files:" >&2
+    echo "$offenders" >&2
+    exit 1
+fi
 
 echo "==> tests (BrightnessCore)"
 swift test --package-path Packages/BrightnessCore
@@ -17,5 +39,8 @@ swift test --package-path Packages/BrightnessCore
 echo "==> build (Cathemeral.app)"
 xcodebuild -project Cathemeral.xcodeproj -scheme Cathemeral -configuration Debug \
     -destination "platform=macOS,arch=$(uname -m)" -derivedDataPath build/DerivedData -quiet build
+
+echo "==> build (Tools)"
+swift build --package-path Tools
 
 echo "==> check passed"

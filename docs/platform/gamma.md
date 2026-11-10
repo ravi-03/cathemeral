@@ -17,6 +17,10 @@ These facts were measured by the ticket 01 spike on an M1 with only the built-in
 - **Our dimming is silently wiped when any other gamma writer exits** (f.lux, Lunar, a calibration tool, the restorer). Nothing notifies the app. While a display is dimmed, re-check its table on the 1 Hz tick. A table equal to the captured original means it was reset: re-apply silently. Any other table counts as a mismatch toward pausing the display (ticket 10).
 - **Writes can block.** One `CGSetDisplayTransferByTable` call takes about 0.06 ms back-to-back, but up to about 10 ms when writes are spaced out. Keep writes off the main actor.
 
+## Checking it on this Mac
+
+`Tools/e2e.sh` checks dimming on the real built-in display, and `Tools` also has `peek`, which reads each display's gamma without writing it. See `Tools/README.md`.
+
 ## Not yet verified
 
 - Whether one writer's exit resets every display or only the ones it wrote to. Needs an external monitor (ticket 02).

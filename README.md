@@ -30,7 +30,8 @@ The brightness keys, Night Shift and True Tone won't fix it, because they don't 
 
 Needs Xcode 16 or later (developed on Xcode 27.2).
 
-- `scripts/check` runs `swift format lint`, the tests and the app build, and exits non-zero on any failure. CI runs it too. Turn on the pre-commit hook that runs it with `git config core.hooksPath .githooks`.
+- `scripts/check` runs `swift format lint`, the tests and the app build, and exits non-zero on any failure. CI runs it too, and so does the pre-commit hook, which the first run of `scripts/check` turns on.
+- `Tools/e2e.sh` checks dimming end to end on the real screen (see `Tools/README.md`).
 - `swift test --package-path Packages/BrightnessCore` runs the tests alone.
 - Open `Cathemeral.xcodeproj` to run the app.
 

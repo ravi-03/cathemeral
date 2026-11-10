@@ -221,7 +221,8 @@ These must be answered before the build relies on them. Answers from ticket 01 (
   - dragging a window across monitors (followed within 1 second)
   - a Space switch, and f.lux taking over (pause, then Resume)
   - idle CPU under 1% in Instruments
-- **Prior art:** none yet, because the repo has no code. These tests set the pattern.
+- **Prior art:** `Packages/BrightnessCore/Tests` (ticket 03) sets the pattern: Swift Testing, a recording fake backend, an in-memory store and a test clock.
+- **End-to-end on the real screen:** `Tools/e2e.sh` drives the real engine and gamma controller and reads results back with `peek` (see `Tools/README.md`). Extend it as items on the manual checklist above become scriptable.
 
 ## Out of Scope
 

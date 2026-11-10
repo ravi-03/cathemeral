@@ -7,10 +7,23 @@ on:
 
 jobs:
   check:
-    runs-on: macos-latest
+    # Pinned to the toolchain scripts/check is run with locally (Xcode 27.2, Swift 6.4.2), so
+    # swift format lints the same way here. Bump both together.
+    runs-on: macos-26
+    env:
+      XCODE_VERSION: "27.2"
     steps:
       - uses: actions/checkout@v4
-      - name: Show toolchain
-        run: xcodebuild -version && swift --version
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        run: |
+          app="/Applications/Xcode_${XCODE_VERSION}.app"
+          if [[ ! -d "$app" ]]; then
+            echo "::error::Xcode ${XCODE_VERSION} is not on this runner. Installed:"
+            ls -d /Applications/Xcode*.app
+            exit 1
+          fi
+          sudo xcode-select -s "$app"
+          xcodebuild -version
+          swift --version
       - name: Check
         run: scripts/check

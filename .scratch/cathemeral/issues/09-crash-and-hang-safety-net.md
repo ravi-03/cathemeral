@@ -4,6 +4,8 @@
 
 Updated from ticket 01's answers: calling `CGDisplayRestoreColorSyncSettings` from the watchdog does nothing to the app's gamma, and a 2 s timeout plus the restorer's spawn time overshoots 2 s. Working reference code: `hold`, `watchdog` and `restorer` in `spike/Sources/spike/main.swift` on `prototype/spike`.
 
+**Already built in ticket 03:** SIGTERM, SIGINT and SIGHUP restore gamma through dispatch signal sources in `AppDelegate.restoreOnTerminationSignals()` (`App/Cathemeral/CathemeralApp.swift`), because `CODING_STANDARDS.md` requires a restore on every exit path. For the first box, verify that rather than rebuild it. `Tools/e2e.sh` and `peek` can read the result back.
+
 **Blocked by:** 01 (Spike: automated platform checks), 03 (Tracer bullet: frontmost app dims its display)
 
 **Status:** ready-for-agent
