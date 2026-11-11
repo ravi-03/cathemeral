@@ -12,10 +12,17 @@ public struct Settings: Equatable, Sendable {
     /// The master switch. While off, every display shows its original curve.
     public var isEnabled: Bool
 
-    public init(appSettings: [AppID: Level] = [:], defaultLevel: Level = .full, isEnabled: Bool = true) {
+    /// The global hotkeys the user has bound. An action missing here has none; a fresh install has none.
+    public var hotkeys: [HotkeyAction: Hotkey]
+
+    public init(
+        appSettings: [AppID: Level] = [:], defaultLevel: Level = .full, isEnabled: Bool = true,
+        hotkeys: [HotkeyAction: Hotkey] = [:]
+    ) {
         self.appSettings = appSettings
         self.defaultLevel = defaultLevel
         self.isEnabled = isEnabled
+        self.hotkeys = hotkeys
     }
 }
 
@@ -49,7 +56,8 @@ public struct Settings: Equatable, Sendable {
     ///
     /// - 1: the default level and app settings.
     /// - 2: adds `enabled`, the master switch. A version 1 file loads with dimming on.
-    public nonisolated static let schemaVersion = 2
+    /// - 3: adds `hotkeys`. An older file loads with none bound.
+    public nonisolated static let schemaVersion = 3
 
     /// Where the app keeps its settings: `~/Library/Application Support/Cathemeral/settings.json`.
     public nonisolated static var standardFileURL: URL {
@@ -130,11 +138,24 @@ private struct SettingsFile: Codable {
         var level: Double
     }
 
+    /// One bound hotkey: `{"action": "levelDown", "keyCode": 125, "modifiers": ["control", "option"]}`.
+    struct HotkeyEntry: Codable {
+        var action: String
+        var keyCode: UInt16
+        var modifiers: [String]
+    }
+
+    private static let modifierNames: [(String, Hotkey.Modifiers)] = [
+        ("command", .command), ("option", .option), ("control", .control), ("shift", .shift),
+    ]
+
     var schemaVersion: Int
     var defaultLevel: Double
     var appSettings: [Entry]
     /// Missing before schema version 2, meaning on.
     var enabled: Bool?
+    /// Missing before schema version 3, meaning none bound.
+    var hotkeys: [HotkeyEntry]?
 
     init(_ settings: Settings) {
         schemaVersion = FileSettingsStore.schemaVersion
@@ -145,6 +166,13 @@ private struct SettingsFile: Codable {
             .map { app, level in
                 Entry(bundleID: app.bundleID, executablePath: app.executablePath, level: level.fraction)
             }
+        hotkeys = settings.hotkeys
+            .sorted { $0.key.rawValue < $1.key.rawValue }
+            .map { action, hotkey in
+                HotkeyEntry(
+                    action: action.rawValue, keyCode: hotkey.keyCode,
+                    modifiers: Self.modifierNames.filter { hotkey.modifiers.contains($0.1) }.map(\.0))
+            }
     }
 
     var settings: Settings {
@@ -154,6 +182,16 @@ private struct SettingsFile: Codable {
                 appSettings[app] = Level(entry.level)
             }
         }
-        return Settings(appSettings: appSettings, defaultLevel: Level(defaultLevel), isEnabled: enabled ?? true)
+        var hotkeys: [HotkeyAction: Hotkey] = [:]
+        let knownModifiers = Dictionary(uniqueKeysWithValues: Self.modifierNames)
+        for entry in self.hotkeys ?? [] {
+            // An action or modifier this build doesn't know is dropped rather than misread.
+            let modifiers = entry.modifiers.compactMap { knownModifiers[$0] }
+            guard let action = HotkeyAction(rawValue: entry.action), modifiers.count == entry.modifiers.count
+            else { continue }
+            hotkeys[action] = Hotkey(keyCode: entry.keyCode, modifiers: Hotkey.Modifiers(modifiers))
+        }
+        return Settings(
+            appSettings: appSettings, defaultLevel: Level(defaultLevel), isEnabled: enabled ?? true, hotkeys: hotkeys)
     }
 }

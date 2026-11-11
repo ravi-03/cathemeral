@@ -253,6 +253,29 @@ import Observation
         settingsChanged()
     }
 
+    /// How far a level hotkey steps a level.
+    public static let hotkeyStep = 0.1
+
+    /// A level hotkey: steps the app's level by `hotkeyStep`, to a whole percent, and saves it as its app setting,
+    /// creating one if the app had none. Every display it owns fades to the new level over
+    /// `switchRamp`.
+    ///
+    /// An ignored app changes nothing, so a hotkey pressed over Spotlight never changes the app behind it.
+    ///
+    /// - Returns: the new level, or nil for an ignored app.
+    @discardableResult public func nudgeLevel(of app: App, _ direction: NudgeDirection) -> Level? {
+        guard !ignoredApps.contains(app.id) else { return nil }
+        let step = direction == .up ? Self.hotkeyStep : -Self.hotkeyStep
+        // Rounded to a whole percent, so repeated steps don't drift (0.4 - 0.1 isn't 0.3 in binary).
+        let level = Level(((level(for: app.id).fraction + step) * 100).rounded() / 100)
+        settings.appSettings[app.id] = level
+        scheduleSave()
+        for (display, owner) in owners where owner.id == app.id && !isHeldForSwitch(display, at: level) {
+            show(level, on: display, over: Self.switchRamp)
+        }
+        return level
+    }
+
     /// Removes the app's app setting, so it follows the default level from now on.
     public func useDefault(for app: AppID) {
         guard settings.appSettings.removeValue(forKey: app) != nil else { return }
@@ -276,6 +299,19 @@ import Observation
                 return SavedApp(id: app, name: name, level: level, isInstalled: installed != nil)
             }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    /// The global hotkeys the user has bound. None until the user binds one.
+    public var hotkeys: [HotkeyAction: Hotkey] { settings.hotkeys }
+
+    /// Binds `hotkey` to `action`, or clears the action's hotkey if nil, and saves the change. A key
+    /// combination does one thing, so binding one already used by another action moves it.
+    public func setHotkey(_ hotkey: Hotkey?, for action: HotkeyAction) {
+        if let hotkey {
+            settings.hotkeys = settings.hotkeys.filter { $0.value != hotkey }
+        }
+        settings.hotkeys[action] = hotkey
+        scheduleSave()
     }
 
     /// The level for any app without its own app setting.
@@ -371,11 +407,16 @@ import Observation
         lastSettingsApply = clock.now
         // Only displays whose level changed, so a display still fading after a switch isn't cut short.
         for display in owners.keys where shown[display] != target(for: display) {
-            // As in `visibleAppsChanged`: mid-switch, never brighten a display dimmed early for the app
-            // coming to the front. `appActivated` sets it right.
-            if activating != nil, target(for: display) > shown[display, default: .full] { continue }
+            if isHeldForSwitch(display, at: target(for: display)) { continue }
             show(target(for: display), on: display, over: .zero)
         }
+    }
+
+    /// Whether showing `level` on `display` must wait for a switch under way: mid-switch, a display
+    /// dimmed early for the app coming to the front is never brightened, so the old window doesn't
+    /// flash bright. `appActivated` sets it right.
+    private func isHeldForSwitch(_ display: DisplayID, at level: Level) -> Bool {
+        activating != nil && level > shown[display, default: .full]
     }
 
     /// Saves the settings once the save delay passes with no further change.
@@ -397,6 +438,14 @@ public enum DisplayStatus: Sendable {
     /// Levels don't take on it, as on some HDR, Sidecar or AirPlay displays
     /// (`CONTEXT.md`, unsupported display).
     case unsupported
+}
+
+/// Which way a level hotkey steps a level.
+public enum NudgeDirection: Sendable {
+    /// Brighter, towards 100%.
+    case up
+    /// Dimmer, towards the 10% floor.
+    case down
 }
 
 /// What the status icon shows.

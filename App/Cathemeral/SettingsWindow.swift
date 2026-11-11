@@ -4,16 +4,18 @@ import BrightnessPlatform
 import SwiftUI
 
 /// The Settings window, opened from the popover's gear and the right-click menu: the default level
-/// and launch at login, the Apps list, and the steps for a screen stuck dim.
+/// and launch at login, the hotkeys, the Apps list, and the steps for a screen stuck dim.
 @MainActor final class SettingsWindow {
     private let engine: DimmingEngine
     private let loginItem: LoginItem
+    private let hotkeys: Hotkeys
     private let installedApps = InstalledApps()
     private var window: NSWindow?
 
-    init(engine: DimmingEngine, loginItem: LoginItem) {
+    init(engine: DimmingEngine, loginItem: LoginItem, hotkeys: Hotkeys) {
         self.engine = engine
         self.loginItem = loginItem
+        self.hotkeys = hotkeys
     }
 
     /// Brings the window to the front, making it on first use. Apps are looked up again each time,
@@ -31,7 +33,7 @@ import SwiftUI
     }
 
     private func settingsView() -> SettingsView {
-        SettingsView(engine: engine, loginItem: loginItem, installedApps: installedApps)
+        SettingsView(engine: engine, loginItem: loginItem, hotkeys: hotkeys, installedApps: installedApps)
     }
 
     private func makeWindow() -> NSWindow {
@@ -47,6 +49,7 @@ import SwiftUI
 struct SettingsView: View {
     let engine: DimmingEngine
     let loginItem: LoginItem
+    let hotkeys: Hotkeys
     let installedApps: InstalledApps
 
     var body: some View {
@@ -54,6 +57,8 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 14) {
                 DefaultLevelSlider(engine: engine)
                 LaunchAtLoginToggle(loginItem: loginItem)
+                Divider()
+                HotkeySettings(engine: engine, hotkeys: hotkeys)
                 Spacer()
             }
             .padding(20)

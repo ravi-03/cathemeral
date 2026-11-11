@@ -960,4 +960,99 @@ import Testing
 
         #expect(backend.levels[builtIn] == Level(0.4))
     }
+
+    @Test func aLevelHotkeyStepsTheFrontmostAppsLevelWithARampAndSavesIt() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+
+        let level = engine.nudgeLevel(of: notion, .down)
+        clock.advance(by: DimmingEngine.saveDelay)
+
+        #expect(level == Level(0.3))
+        #expect(backend.levels[builtIn] == Level(0.3))
+        #expect(backend.ramps[builtIn] == DimmingEngine.switchRamp)
+        #expect(store.saved.appSettings[notion.id] == Level(0.3))
+    }
+
+    @Test func aLevelHotkeyWithAnIgnoredAppFrontmostChangesNothing() {
+        let spotlight = App(id: AppID(bundleID: "com.apple.Spotlight"), name: "Spotlight")
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        let appliedBefore = backend.applied.count
+
+        let level = engine.nudgeLevel(of: spotlight, .down)
+        clock.advance(by: .seconds(1))
+
+        #expect(level == nil)
+        #expect(backend.applied.count == appliedBefore)
+        #expect(!engine.hasAppSetting(for: spotlight.id))
+        #expect(store.saveCount == 0)
+    }
+
+    @Test func aLevelHotkeyOnAnAppWithoutAnAppSettingStepsFromTheDefaultLevelAndCreatesOne() {
+        store.saved.defaultLevel = Level(0.7)
+        let engine = makeEngine()
+        engine.appActivated(terminal, on: builtIn)
+
+        let level = engine.nudgeLevel(of: terminal, .up)
+
+        #expect(level == Level(0.8))
+        #expect(engine.hasAppSetting(for: terminal.id))
+        #expect(engine.defaultLevel == Level(0.7))
+        #expect(backend.levels[builtIn] == Level(0.8))
+    }
+
+    @Test func levelHotkeysStopAtTenAndOneHundredPercent() {
+        store.saved.appSettings[notion.id] = Level(0.15)
+        store.saved.appSettings[safari.id] = Level(0.95)
+        let engine = makeEngine()
+
+        #expect(engine.nudgeLevel(of: notion, .down) == Level(0.1))
+        #expect(engine.nudgeLevel(of: notion, .down) == Level(0.1))
+        #expect(engine.nudgeLevel(of: safari, .up) == Level.full)
+        #expect(engine.nudgeLevel(of: safari, .up) == Level.full)
+    }
+
+    @Test func aLevelHotkeyDuringASwitchNeverBrightensADisplayDimmedEarly() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        store.saved.appSettings[terminal.id] = Level(0.6)
+        let engine = makeEngine()
+        engine.appActivated(terminal, on: builtIn)
+
+        engine.appActivating(notion, on: builtIn)
+        engine.nudgeLevel(of: terminal, .up)
+
+        #expect(backend.levels[builtIn] == Level(0.4))
+        engine.appActivated(terminal, on: builtIn)
+        #expect(backend.levels[builtIn] == Level(0.7))
+    }
+
+    @Test func aFreshInstallHasNoHotkeysBound() {
+        #expect(makeEngine().hotkeys.isEmpty)
+    }
+
+    @Test func bindingAHotkeySavesItAndClearingItRemovesIt() {
+        let engine = makeEngine()
+        let combo = Hotkey(keyCode: 125, modifiers: [.control, .option])
+
+        engine.setHotkey(combo, for: .levelDown)
+        clock.advance(by: DimmingEngine.saveDelay)
+        #expect(store.saved.hotkeys == [.levelDown: combo])
+
+        engine.setHotkey(nil, for: .levelDown)
+        clock.advance(by: DimmingEngine.saveDelay)
+        #expect(store.saved.hotkeys.isEmpty)
+    }
+
+    @Test func bindingAHotkeyAlreadyUsedByAnotherActionMovesIt() {
+        let engine = makeEngine()
+        let combo = Hotkey(keyCode: 125, modifiers: [.control, .option])
+        engine.setHotkey(combo, for: .levelDown)
+
+        engine.setHotkey(combo, for: .toggleMasterSwitch)
+
+        #expect(engine.hotkeys == [.toggleMasterSwitch: combo])
+    }
 }

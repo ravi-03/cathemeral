@@ -29,7 +29,7 @@ public enum Displays {
     }
 
     /// The screen AppKit uses for `display`, or nil if it has none (asleep, or mirrored).
-    @MainActor static func screen(showing display: DisplayID) -> NSScreen? {
+    @MainActor public static func screen(showing display: DisplayID) -> NSScreen? {
         NSScreen.screens.first { $0.displayID == display }
     }
 
@@ -42,6 +42,15 @@ public enum Displays {
         var count: UInt32 = 0
         guard CGGetOnlineDisplayList(UInt32(ids.count), &ids, &count) == .success else { return [] }
         return ids.prefix(Int(count)).map(DisplayID.init)
+    }
+
+    /// The app in front, with the display holding its frontmost window (the main display if it has
+    /// none), or nil if no app is in front or it has no ID. A level hotkey acts on this app.
+    @MainActor public static func frontmostApp() -> (app: App, display: DisplayID)? {
+        guard let running = NSWorkspace.shared.frontmostApplication, let app = App(running: running) else {
+            return nil
+        }
+        return (app, holdingFrontmostWindow(of: running.processIdentifier) ?? main)
     }
 
     /// The display that the app's frontmost normal window overlaps most, or nil if it has no

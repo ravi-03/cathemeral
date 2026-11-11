@@ -25,7 +25,8 @@ struct CathemeralApp: SwiftUI.App {
     )
 
     private let loginItem = LoginItem()
-    private lazy var settingsWindow = SettingsWindow(engine: engine, loginItem: loginItem)
+    private lazy var hotkeys = Hotkeys(engine: engine)
+    private lazy var settingsWindow = SettingsWindow(engine: engine, loginItem: loginItem, hotkeys: hotkeys)
     private var statusItem: StatusItemController?
 
     private lazy var activations = ActivationMonitor(
@@ -58,6 +59,7 @@ struct CathemeralApp: SwiftUI.App {
         displayMonitor.start()
         activations.start()
         trackWindowsWhileNeeded()
+        hotkeys.start()
         statusItem = StatusItemController(engine: engine, loginItem: loginItem) { [weak self] in
             self?.settingsWindow.show()
         }
@@ -77,6 +79,7 @@ struct CathemeralApp: SwiftUI.App {
 
     /// Every normal quit (the Quit button, Cmd-Q, logout) passes through here.
     func applicationWillTerminate(_ notification: Notification) {
+        hotkeys.stop()
         activations.stop()
         windowTracker.stop()
         displayMonitor.stop()

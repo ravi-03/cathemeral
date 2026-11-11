@@ -17,6 +17,8 @@ import Testing
         settings.appSettings[notion.id] = Level(0.4)
         settings.appSettings[unbundled] = Level(0.25)
         settings.isEnabled = false
+        settings.hotkeys[.levelDown] = Hotkey(keyCode: 125, modifiers: [.control, .option])
+        settings.hotkeys[.toggleMasterSwitch] = Hotkey(keyCode: 2, modifiers: [.command, .shift])
 
         makeStore().save(settings)
 
@@ -37,6 +39,7 @@ import Testing
         let settings = makeStore().load()
 
         #expect(settings == Settings(appSettings: [notion.id: Level(0.4)], defaultLevel: Level(0.8), isEnabled: true))
+        #expect(settings.hotkeys.isEmpty)
         #expect(try setAsideFiles().isEmpty)
     }
 
@@ -51,6 +54,21 @@ import Testing
 
         #expect(settings.defaultLevel.fraction == 0.1)
         #expect(settings.appSettings[notion.id]?.fraction == 0.1)
+    }
+
+    @Test func aHotkeyThisBuildDoesNotKnowIsDroppedAndTheRestLoad() throws {
+        try write(
+            """
+            {"schemaVersion": 3, "defaultLevel": 1, "appSettings": [],
+             "hotkeys": [{"action": "levelUp", "keyCode": 126, "modifiers": ["control", "option"]},
+                         {"action": "teleport", "keyCode": 1, "modifiers": ["command"]},
+                         {"action": "levelDown", "keyCode": 125, "modifiers": ["hyper"]}]}
+            """)
+
+        let settings = makeStore().load()
+
+        #expect(settings.hotkeys == [.levelUp: Hotkey(keyCode: 126, modifiers: [.control, .option])])
+        #expect(try setAsideFiles().isEmpty)
     }
 
     @Test func theFileRecordsItsSchemaVersion() throws {
