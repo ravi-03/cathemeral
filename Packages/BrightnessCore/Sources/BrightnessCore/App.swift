@@ -34,6 +34,11 @@ public struct AppID: Hashable, Sendable, CustomStringConvertible {
     /// The executable path, or nil if the app is identified by its bundle ID.
     public var executablePath: String? { isExecutablePath ? rawValue : nil }
 
+    /// The executable's file name, or nil if the app is identified by its bundle ID.
+    public var fileName: String? {
+        executablePath?.split(separator: "/").last.map(String.init)
+    }
+
     public var description: String { rawValue }
 }
 
@@ -57,5 +62,22 @@ public struct OpenApp: Hashable, Sendable {
     public init(app: App, windowCount: Int) {
         self.app = app
         self.windowCount = windowCount
+    }
+}
+
+/// An app with its own app setting, for the Settings window's Apps list.
+public struct SavedApp: Hashable, Sendable {
+    public let id: AppID
+    /// The installed app's name. An app without a bundle ID shows by its file name.
+    public let name: String
+    public let level: Level
+    /// False once the app is no longer on this Mac, so the list can grey it out.
+    public let isInstalled: Bool
+
+    public init(id: AppID, name: String, level: Level, isInstalled: Bool) {
+        self.id = id
+        self.name = name
+        self.level = level
+        self.isInstalled = isInstalled
     }
 }

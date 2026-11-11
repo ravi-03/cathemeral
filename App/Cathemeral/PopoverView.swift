@@ -3,16 +3,25 @@ import BrightnessCore
 import BrightnessPlatform
 import SwiftUI
 
-/// The menu bar popover: the master switch, one card per display, the other apps with open
-/// windows, the default level, launch at login and Quit.
+/// The menu bar popover: the master switch and the gear that opens Settings, one card per display,
+/// the other apps with open windows, the default level, launch at login and Quit.
 struct PopoverView: View {
     let engine: DimmingEngine
     let openWindows: OpenWindows
     let loginItem: LoginItem
+    let openSettings: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            MasterSwitch(engine: engine)
+            HStack(alignment: .top, spacing: 8) {
+                MasterSwitch(engine: engine)
+                Button(action: openSettings) {
+                    Image(systemName: "gearshape")
+                }
+                .buttonStyle(.borderless)
+                .help("Settings")
+                .accessibilityLabel("Settings")
+            }
             Divider()
             ForEach(engine.displays, id: \.self) { display in
                 DisplayCard(engine: engine, display: display)

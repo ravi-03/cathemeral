@@ -264,6 +264,20 @@ import Observation
         settings.appSettings[app] != nil
     }
 
+    /// Every app setting, for the Apps list, sorted by name. App settings aren't saved with names,
+    /// so `installedName` looks each app up on this Mac: its name, or nil if it isn't installed.
+    /// An app without a bundle ID shows by its file name, and an uninstalled app with one by its
+    /// bundle ID.
+    public func savedApps(installedName: (AppID) -> String?) -> [SavedApp] {
+        settings.appSettings
+            .map { app, level in
+                let installed = installedName(app)
+                let name = app.fileName ?? installed ?? app.rawValue
+                return SavedApp(id: app, name: name, level: level, isInstalled: installed != nil)
+            }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
     /// The level for any app without its own app setting.
     public var defaultLevel: Level { settings.defaultLevel }
 

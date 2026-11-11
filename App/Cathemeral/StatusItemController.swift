@@ -4,7 +4,7 @@ import BrightnessPlatform
 import SwiftUI
 
 /// The menu bar icon. A click opens the popover, and a right-click (or Control-click) opens the
-/// quick menu: Enable/Disable, Settings and Quit.
+/// quick menu: Enable/Disable, Settings and Quit. Settings also opens from the popover's gear.
 ///
 /// The popover's list of other open windows is read while the popover is open, and never while
 /// it's closed.
@@ -24,7 +24,9 @@ import SwiftUI
         super.init()
 
         let content = NSHostingController(
-            rootView: PopoverView(engine: engine, openWindows: openWindows, loginItem: loginItem))
+            rootView: PopoverView(engine: engine, openWindows: openWindows, loginItem: loginItem) { [weak self] in
+                self?.showSettings()
+            })
         // The popover grows and shrinks with the list of other open windows.
         content.sizingOptions = .preferredContentSize
         popover.contentViewController = content
@@ -77,7 +79,10 @@ import SwiftUI
 
     @objc private func toggleEnabled() { engine.setEnabled(!engine.isEnabled) }
 
-    @objc private func showSettings() { openSettings() }
+    @objc private func showSettings() {
+        popover.performClose(nil)
+        openSettings()
+    }
 
     @objc private func quit() { NSApp.terminate(nil) }
 
