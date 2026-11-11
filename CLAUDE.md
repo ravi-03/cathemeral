@@ -1,6 +1,6 @@
 # cathemeral
 
-**Real screen:** after changing `BrightnessPlatform`, `Fader`, `App/GammaWatchdog`, or how `DimmingEngine` applies levels, run `Tools/e2e.sh` in the background, or just the affected section (`Tools/e2e.sh paused`). It takes over the screen for about 2.5 minutes, so `scripts/check` and CI can't run it. If it refuses because a Debug Cathemeral from `build/DerivedData` is running, quit that app (it restores on quit) and run again. See `Tools/README.md`.
+**Real screen:** after changing `GammaController`, `ActivationMonitor`, `FrontWindowTracker` or `SafetyNet` (BrightnessPlatform), `Fader`, `App/GammaWatchdog`, or how `DimmingEngine` applies levels, run `Tools/e2e.sh` in the background, or just the affected section (`Tools/e2e.sh paused`). It takes over the screen for about 2.5 minutes, so `scripts/check` and CI can't run it. See `Tools/README.md`.
 
 ## Agent skills
 

@@ -23,6 +23,20 @@ for section in "${sections[@]}"; do
     }
 done
 cd "$(dirname "$0")"
+# A second gamma writer spoils every reading, and its exit resets the harness's tables. A Debug
+# build from this repo is quit here: SIGTERM goes through its SafetyNet, which restores gamma and
+# saves settings. Any other copy (an installed release) is left to the user.
+debug_app="$(cd .. && pwd)/build/DerivedData/Build/Products/Debug/Cathemeral.app/Contents/MacOS/Cathemeral"
+if debug_pids=$(pgrep -xf "$debug_app"); then
+    echo "Quitting the Debug Cathemeral (pid $debug_pids); relaunch it afterwards."
+    kill -TERM $debug_pids
+    for _ in $(seq 50); do
+        pgrep -xf "$debug_app" >/dev/null || break
+        sleep 0.1
+    done
+    # WindowServer resets a gamma writer's tables after it exits, not as it exits.
+    sleep 1
+fi
 if pgrep -x Cathemeral >/dev/null; then
     echo "Quit Cathemeral first: a second gamma writer spoils every reading, and its exit resets the harness's tables." >&2
     exit 1
