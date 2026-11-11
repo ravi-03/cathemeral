@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Runs everything a change must pass: format lint, the gamma-writer rule, tests, and the builds.
+# Compiler warnings fail the check: `quietly` hides the output of a passing step, so a warning would
+# otherwise never be seen.
 # Exits non-zero on the first failure. Run by the pre-commit hook and by CI.
 #
 # None of these steps writes gamma, so a failure can't leave the screen dim.
@@ -47,12 +49,13 @@ if [[ -n "$offenders" ]]; then
 fi
 
 echo "==> tests (BrightnessCore)"
-quietly swift test --package-path Packages/BrightnessCore
+quietly swift test --package-path Packages/BrightnessCore -Xswiftc -warnings-as-errors
 grep -m1 'Test run with' "$log" || true
 
 echo "==> build (Cathemeral.app)"
 quietly xcodebuild -project Cathemeral.xcodeproj -scheme Cathemeral -configuration Debug \
-    -destination "platform=macOS,arch=$(uname -m)" -derivedDataPath build/DerivedData -quiet build
+    -destination "platform=macOS,arch=$(uname -m)" -derivedDataPath build/DerivedData -quiet \
+    SWIFT_TREAT_WARNINGS_AS_ERRORS=YES build
 
 # The safety net needs the watchdog inside the bundle, next to the app (SafetyNet, ticket 09).
 watchdog=build/DerivedData/Build/Products/Debug/Cathemeral.app/Contents/MacOS/GammaWatchdog
@@ -62,6 +65,6 @@ if [[ ! -x "$watchdog" ]]; then
 fi
 
 echo "==> build (Tools)"
-quietly swift build --package-path Tools
+quietly swift build --package-path Tools -Xswiftc -warnings-as-errors
 
 echo "==> check passed"

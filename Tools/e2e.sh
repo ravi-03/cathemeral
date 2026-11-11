@@ -132,12 +132,14 @@ cleanup() {
 trap cleanup EXIT
 
 failures=0
+passes=0
 expect() { # expect <label> <peak>
     sleep 0.7
     local got
     got=$("$bin/peek" --built-in)
     if [[ "$got" == "$2" ]]; then
         echo "ok    $1: $got"
+        passes=$((passes + 1))
     else
         echo "FAIL  $1: expected $2, got $got"
         failures=$((failures + 1))
@@ -149,6 +151,7 @@ check() { # check <label> <command...>: ok if the command succeeds
     shift
     if "$@"; then
         echo "ok    $label"
+        passes=$((passes + 1))
     else
         echo "FAIL  $label"
         failures=$((failures + 1))
@@ -368,5 +371,11 @@ if ((failures > 0)); then
         echo "--- other-app log"
         cat "$work/other.log"
     fi
+fi
+# The verdict is always the last line, so output trimmed to its tail still shows the result.
+if ((failures > 0)); then
+    echo "e2e: FAILED ($failures failed, $passes passed)"
+else
+    echo "e2e: passed ($passes checks)"
 fi
 exit $((failures > 0))

@@ -73,7 +73,7 @@ import Testing
     @Test func anUndimmedDisplayShowingAnotherCurveIsRecaptured() {
         // Nothing of ours is on screen, so there's no fight, but the next dim must scale the curve
         // on screen now, not the stale one.
-        var watch = TableWatch(original: original)
+        let watch = TableWatch(original: original)
 
         #expect(watch.onTickUndimmed(readBack: original) == .carryOn)
         #expect(watch.onTickUndimmed(readBack: foreign) == .recapture)
