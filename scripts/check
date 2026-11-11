@@ -52,10 +52,12 @@ echo "==> tests (BrightnessCore)"
 quietly swift test --package-path Packages/BrightnessCore -Xswiftc -warnings-as-errors
 grep -m1 'Test run with' "$log" || true
 
+# Warnings fail the app and watchdog targets through SWIFT_TREAT_WARNINGS_AS_ERRORS in the project, not
+# on this command line: there it would reach the package targets too, which Xcode 26 builds with
+# -suppress-warnings, and the two flags conflict. The packages' warnings fail the Tools build below.
 echo "==> build (Cathemeral.app)"
 quietly xcodebuild -project Cathemeral.xcodeproj -scheme Cathemeral -configuration Debug \
-    -destination "platform=macOS,arch=$(uname -m)" -derivedDataPath build/DerivedData -quiet \
-    SWIFT_TREAT_WARNINGS_AS_ERRORS=YES build
+    -destination "platform=macOS,arch=$(uname -m)" -derivedDataPath build/DerivedData -quiet build
 
 # The safety net needs the watchdog inside the bundle, next to the app (SafetyNet, ticket 09).
 watchdog=build/DerivedData/Build/Products/Debug/Cathemeral.app/Contents/MacOS/GammaWatchdog
