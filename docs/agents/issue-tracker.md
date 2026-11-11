@@ -10,6 +10,7 @@ Issues and PRDs for this repo live as markdown files in `.scratch/`.
 - Triage state is recorded as a `Status:` line near the top of each issue file (see `triage-labels.md` for the role strings)
 - Comments and conversation history append to the bottom of the file under a `## Comments` heading
 - When every acceptance box in an issue is ticked, set its line to `**Status:** done`. A `done` issue counts as finished for blocking edges and is never picked up again
+- A `ready-for-human` issue has its agent work finished and is waiting only on manual checks. It doesn't block agent work: an agent may pick up an issue whose blockers are all `done` or `ready-for-human`. It still blocks issues a human must do, such as a release
 
 ## When a skill says "publish to the issue tracker"
 

@@ -35,7 +35,7 @@ Left for a human (needs hardware or eyes):
 - [ ] An unsupported display (Sidecar, AirPlay or HDR). Only tables that can't be read, and writes whose read-back shows the original, are detected. A display that stores the table but doesn't show it can't be detected.
 
 Open points:
-- **Timing.** A reset is re-applied within one tick (1 s) plus a queued read and write (up to about 80 ms), so about 1.1 s in the worst case. CODING_STANDARDS.md counts that as a breach of "about 1 s". Meeting it means checking more often than the 1 Hz window tick.
+- **Timing (settled).** A reset is re-applied within one tick (1 s) plus a queued read and write (up to about 80 ms), so about 1.1 s in the worst case. "About 1 s" is a target, not a firm bound (decided 2026-11-11, now in CODING_STANDARDS.md), so this is accepted.
 - If the app recovers from a hang within the watchdog's 200 ms settle time, a tick can re-apply the restorer's reset with a jump before SIGUSR1 arrives. CODING_STANDARDS.md wants a fade after our own restore.
 - A write already in progress when a display pauses still lands, once.
 - Whether Night Shift writes this table is still open (ticket 02). If it does, dimmed displays would pause every evening.
