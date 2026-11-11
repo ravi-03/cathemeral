@@ -43,3 +43,7 @@ The code is split into `Packages/BrightnessCore` (the rules, no AppKit), `Packag
 - [`docs/adr/`](docs/adr/): architecture decision records, starting with [ADR 0001: per-display gamma dimming](docs/adr/0001-per-display-gamma-dimming.md).
 - [`docs/agents/`](docs/agents/): configuration for the agent skills (issue tracker, triage labels, domain docs).
 - Issues and PRDs live as local markdown files under `.scratch/`.
+
+## License
+
+[MIT](LICENSE)
