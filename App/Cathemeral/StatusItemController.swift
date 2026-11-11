@@ -37,6 +37,7 @@ import SwiftUI
             button.target = self
             button.action = #selector(clicked)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            button.toolTip = "Cathemeral"
         }
         updateIcon()
     }
