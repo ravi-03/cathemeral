@@ -25,10 +25,10 @@
 - **Icon.** `DimmingEngine.dimmingState`: `.off`, `.nothingDimmed` (sun outline), `.dimmed` (`sun.lefthalf.filled`). SF Symbols has no slashed sun, so the slash for `.off` is drawn. The paused dot still shows on top of any state.
 - The right-click menu's Settings… opens a small Settings window (default level and launch at login). Ticket 11 replaces its contents with the Apps list and recovery steps.
 - `scripts/check` passes (117 tests). Engine tests cover the switch, its save and migration, the throttle, the mid-switch guard, the list filter and the icon state.
-- `Tools/e2e.sh` hasn't run: it refused because a Debug Cathemeral from an earlier build was running.
+- `Tools/e2e.sh` passes (run after quitting the older Debug build).
 
 Left for a human:
-- [ ] Run `Tools/e2e.sh` with Cathemeral quit.
+- [x] Run `Tools/e2e.sh` with Cathemeral quit.
 - [ ] The list shows every other app with open windows, with correct window counts, and refreshes while open.
 - [ ] Dragging a card's slider changes the display live; a list slider only saves, and applies the next time that app owns a display.
 - [ ] The master switch fades every display to 100% and back.
