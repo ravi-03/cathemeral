@@ -13,7 +13,7 @@ These facts were measured by the ticket 01 spike on an M1 with only the built-in
 ## What follows for Cathemeral
 
 - **The screen can't be left dim by a crash.** When the app dies, macOS restores the screen itself.
-- **Restoring a hung app's gamma from outside needs a restorer.** The restorer is a one-shot process that writes each display's current table back unchanged and exits. Its exit triggers the reset. The watchdog spawns it on a heartbeat timeout (ticket 09). The watchdog itself never writes gamma, because then its own exit would reset the app's dimming.
+- **Restoring a hung app's gamma from outside needs a restorer.** The restorer is a one-shot process that writes each display's current table back unchanged and exits. Its exit triggers the reset. The watchdog (`App/GammaWatchdog`) runs it as `GammaWatchdog restore` on a heartbeat timeout, waits 200 ms for the reset to land, then signals the app, which fades its levels back in (`SafetyNet`, `DimmingEngine.restoredFromOutside`). The watchdog itself never writes gamma, because then its own exit would reset the app's dimming.
 - **Our dimming is silently wiped when any other gamma writer exits** (f.lux, Lunar, a calibration tool, the restorer). Nothing notifies the app. While a display is dimmed, re-check its table on the 1 Hz tick. A table equal to the captured original means it was reset: re-apply silently. Any other table counts as a mismatch toward pausing the display (ticket 10).
 - **Writes can block.** One `CGSetDisplayTransferByTable` call takes about 0.06 ms back-to-back, but often 5–15 ms and up to about 30 ms when writes are spaced out or WindowServer is busy with an app switch. Keep writes off the main actor.
 

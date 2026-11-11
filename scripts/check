@@ -34,6 +34,7 @@ swift format lint --strict --recursive "${swift_sources[@]}"
 echo "==> gamma writes only in allowed files"
 allowed_gamma_writers=(
     Packages/BrightnessPlatform/Sources/BrightnessPlatform/GammaController.swift
+    App/GammaWatchdog/Restorer.swift
 )
 gamma_writes='CGSetDisplayTransferBy(Table|Formula|ByteTable)|CGDisplayRestoreColorSyncSettings'
 offenders=$(grep -rlE "$gamma_writes" --include='*.swift' App Packages Tools \

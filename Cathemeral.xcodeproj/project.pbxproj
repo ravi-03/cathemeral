@@ -7,16 +7,43 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C0DE00000000000000000B03 /* GammaWatchdog in Embed Watchdog */ = {isa = PBXBuildFile; fileRef = C0DE00000000000000000A03 /* GammaWatchdog */; };
 		C0DE00000000000000000B01 /* BrightnessCore in Frameworks */ = {isa = PBXBuildFile; productRef = C0DE00000000000000000D01 /* BrightnessCore */; };
 		C0DE00000000000000000B02 /* BrightnessPlatform in Frameworks */ = {isa = PBXBuildFile; productRef = C0DE00000000000000000D02 /* BrightnessPlatform */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		C0DE00000000000000000752 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C0DE00000000000000000741 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C0DE00000000000000000C02;
+			remoteInfo = GammaWatchdog;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		C0DE00000000000000000E06 /* Embed Watchdog */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+				C0DE00000000000000000B03 /* GammaWatchdog in Embed Watchdog */,
+			);
+			name = "Embed Watchdog";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		C0DE00000000000000000A01 /* Cathemeral.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cathemeral.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0DE00000000000000000A03 /* GammaWatchdog */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = GammaWatchdog; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		C0DE00000000000000000A02 /* Cathemeral */ = {isa = PBXFileSystemSynchronizedRootGroup; path = App/Cathemeral; sourceTree = "<group>"; };
+		C0DE00000000000000000A04 /* GammaWatchdog */ = {isa = PBXFileSystemSynchronizedRootGroup; path = App/GammaWatchdog; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -29,6 +56,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C0DE00000000000000000E05 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -36,6 +70,7 @@
 			isa = PBXGroup;
 			children = (
 				C0DE00000000000000000A02 /* Cathemeral */,
+				C0DE00000000000000000A04 /* GammaWatchdog */,
 				C0DE00000000000000000F02 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -44,6 +79,7 @@
 			isa = PBXGroup;
 			children = (
 				C0DE00000000000000000A01 /* Cathemeral.app */,
+				C0DE00000000000000000A03 /* GammaWatchdog */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -58,10 +94,12 @@
 				C0DE00000000000000000E02 /* Sources */,
 				C0DE00000000000000000E01 /* Frameworks */,
 				C0DE00000000000000000E03 /* Resources */,
+				C0DE00000000000000000E06 /* Embed Watchdog */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				C0DE00000000000000000751 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				C0DE00000000000000000A02 /* Cathemeral */,
@@ -74,6 +112,25 @@
 			productName = Cathemeral;
 			productReference = C0DE00000000000000000A01 /* Cathemeral.app */;
 			productType = "com.apple.product-type.application";
+		};
+		C0DE00000000000000000C02 /* GammaWatchdog */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0DE00000000000000000713 /* Build configuration list for PBXNativeTarget "GammaWatchdog" */;
+			buildPhases = (
+				C0DE00000000000000000E04 /* Sources */,
+				C0DE00000000000000000E05 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C0DE00000000000000000A04 /* GammaWatchdog */,
+			);
+			name = GammaWatchdog;
+			productName = GammaWatchdog;
+			productReference = C0DE00000000000000000A03 /* GammaWatchdog */;
+			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
 
@@ -104,6 +161,7 @@
 			projectRoot = "";
 			targets = (
 				C0DE00000000000000000C01 /* Cathemeral */,
+				C0DE00000000000000000C02 /* GammaWatchdog */,
 			);
 		};
 /* End PBXProject section */
@@ -126,7 +184,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C0DE00000000000000000E04 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C0DE00000000000000000751 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C0DE00000000000000000C02 /* GammaWatchdog */;
+			targetProxy = C0DE00000000000000000752 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		C0DE00000000000000000721 /* Debug */ = {
@@ -207,6 +280,32 @@
 			};
 			name = Release;
 		};
+		C0DE00000000000000000725 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				ENABLE_HARDENED_RUNTIME = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.ravi-03.cathemeral.watchdog";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		C0DE00000000000000000726 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				ENABLE_HARDENED_RUNTIME = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.ravi-03.cathemeral.watchdog";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -224,6 +323,15 @@
 			buildConfigurations = (
 				C0DE00000000000000000723 /* Debug */,
 				C0DE00000000000000000724 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C0DE00000000000000000713 /* Build configuration list for PBXNativeTarget "GammaWatchdog" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0DE00000000000000000725 /* Debug */,
+				C0DE00000000000000000726 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

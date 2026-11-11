@@ -140,6 +140,14 @@ import Observation
         }
     }
 
+    /// Something outside the app put every display back to its original curve: the watchdog's
+    /// restorer, after the app hung. The backend restores and re-captures each original, and every
+    /// owned display fades back to its owner's level, as after unlocking.
+    public func restoredFromOutside() {
+        backend.restore()
+        showEveryOwnersLevel(over: Self.switchRamp)
+    }
+
     /// Saves `level` as the app's app setting. If the app owns a display, the display shows the new
     /// level straight away.
     public func setLevel(_ level: Level, for app: AppID) {

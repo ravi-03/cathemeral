@@ -41,11 +41,18 @@ struct CathemeralApp: SwiftUI.App {
         onSuspendedChanged: { [engine] suspended in engine.setSuspended(suspended) }
     )
 
-    /// Kept alive so termination signals keep being handled.
-    private var signalSources: [any DispatchSourceSignal] = []
+    /// Restores gamma on termination signals, and keeps the watchdog that restores it on a hang.
+    private lazy var safetyNet = SafetyNet(
+        watchdog: Bundle.main.bundleURL.appending(path: "Contents/MacOS/GammaWatchdog"),
+        beforeExit: { [engine] in
+            engine.restore()
+            engine.savePendingChanges()
+        },
+        onRestoredFromOutside: { [engine] in engine.restoredFromOutside() }
+    )
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        restoreOnTerminationSignals()
+        safetyNet.start()
         displayMonitor.start()
         activations.start()
         trackWindowsWhileNeeded()
@@ -63,28 +70,12 @@ struct CathemeralApp: SwiftUI.App {
         if needed { windowTracker.start() } else { windowTracker.stop() }
     }
 
-    /// Termination signals skip `applicationWillTerminate`, so restore here too before exiting.
-    private func restoreOnTerminationSignals() {
-        for terminationSignal in [SIGTERM, SIGINT, SIGHUP] {
-            signal(terminationSignal, SIG_IGN)
-            let source = DispatchSource.makeSignalSource(signal: terminationSignal, queue: .main)
-            source.setEventHandler { [engine] in
-                MainActor.assumeIsolated {
-                    engine.restore()
-                    engine.savePendingChanges()
-                }
-                exit(0)
-            }
-            source.resume()
-            signalSources.append(source)
-        }
-    }
-
     /// Every normal quit (the Quit button, Cmd-Q, logout) passes through here.
     func applicationWillTerminate(_ notification: Notification) {
         activations.stop()
         windowTracker.stop()
         displayMonitor.stop()
+        safetyNet.stop()
         engine.restore()
         engine.savePendingChanges()
     }

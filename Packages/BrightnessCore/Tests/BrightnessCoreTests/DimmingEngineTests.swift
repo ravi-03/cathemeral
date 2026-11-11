@@ -452,6 +452,40 @@ import Testing
         #expect(backend.levels[builtIn] == Level(0.4))
     }
 
+    // MARK: Restored from outside (the watchdog's restorer, during a hang)
+
+    @Test func afterARestoreFromOutsideEveryOwnedDisplayFadesBackToItsOwnersLevel() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        store.saved.appSettings[terminal.id] = Level(0.6)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        engine.appActivated(terminal, on: external)
+        let before = backend.applied.count
+
+        engine.restoredFromOutside()
+
+        let reapplied = backend.applied.dropFirst(before)
+        #expect(backend.restoreCount == 1)
+        #expect(Set(reapplied.map(\.display)) == [builtIn, external])
+        #expect(reapplied.allSatisfy { $0.ramp == DimmingEngine.switchRamp })
+        #expect(backend.levels[builtIn] == Level(0.4))
+        #expect(backend.levels[external] == Level(0.6))
+    }
+
+    @Test func aRestoreFromOutsideWhileSuspendedWritesNothingUntilTheReturn() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        engine.setSuspended(true)
+        let before = backend.applied.count
+
+        engine.restoredFromOutside()
+        #expect(backend.applied.count == before)
+
+        engine.setSuspended(false)
+        #expect(backend.levels[builtIn] == Level(0.4))
+    }
+
     // MARK: Ownership follows windows
 
     @Test func minimisingTheOwnersLastWindowHandsTheDisplayToTheTopmostVisibleApp() {

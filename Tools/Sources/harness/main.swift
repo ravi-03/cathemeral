@@ -9,11 +9,15 @@
 //   displays-changed             report a display change, as after plugging in a monitor or waking
 //   suspend                      suspend dimming, as when the screen locks
 //   unsuspend                    stop suspending, as when the screen unlocks (fades back)
+//   stall <seconds>              block the main thread, as a short stall in the app would
 //   quit                         restore gamma and exit
 //
-// It prints `READY` once listening, then one line per event. Gamma is restored on `quit`, on
-// end of input, and on SIGTERM, SIGINT and SIGHUP. If it dies any other way, macOS resets its
-// gamma when it exits (docs/platform/gamma.md).
+// Usage: `harness <path-to-GammaWatchdog>`. Like the app, it runs the real `SafetyNet`: gamma is
+// restored on SIGTERM, SIGINT and SIGHUP, and the watchdog restores it if the harness hangs (try
+// `kill -STOP`). It is also restored on `quit` and on end of input. If it dies any other way,
+// macOS resets its gamma when it exits (docs/platform/gamma.md).
+//
+// It prints `READY` once listening, then one line per event.
 import AppKit
 import BrightnessCore
 import BrightnessPlatform
@@ -28,7 +32,14 @@ func say(_ line: String) {
     private let engine = DimmingEngine(
         backend: GammaController(), store: InMemorySettingsStore(), clock: SystemClock(),
         selfID: AppID(bundleID: "cathemeral.harness"), displays: Displays.active)
-    private var signalSources: [any DispatchSourceSignal] = []
+    private lazy var safetyNet = SafetyNet(
+        watchdog: URL(fileURLWithPath: CommandLine.arguments[1]),
+        beforeExit: { [unowned self] in restoreAndExit("termination signal") },
+        onRestoredFromOutside: { [unowned self] in
+            engine.restoredFromOutside()
+            say("restored from outside: fading back")
+        }
+    )
     private lazy var activations = ActivationMonitor(
         onActivating: { [unowned self] app, display in engine.appActivating(app, on: display) },
         onActivation: { [unowned self] app, display in report(app, on: display) },
@@ -42,15 +53,7 @@ func say(_ line: String) {
     }
 
     func start() {
-        for terminationSignal in [SIGTERM, SIGINT, SIGHUP] {
-            signal(terminationSignal, SIG_IGN)
-            let source = DispatchSource.makeSignalSource(signal: terminationSignal, queue: .main)
-            source.setEventHandler { [unowned self] in
-                MainActor.assumeIsolated { restoreAndExit("signal \(terminationSignal)") }
-            }
-            source.resume()
-            signalSources.append(source)
-        }
+        safetyNet.start()
         activations.start()
         windowTracker.start()
     }
@@ -80,6 +83,10 @@ func say(_ line: String) {
         case ("unsuspend", 1):
             engine.setSuspended(false)
             say("unsuspended")
+        case ("stall", 2):
+            guard let seconds = Double(command[1]) else { return say("bad seconds: \(command[1])") }
+            Thread.sleep(forTimeInterval: seconds)
+            say("stalled \(command[1]) s")
         case ("quit", 1):
             restoreAndExit("quit")
         default:
@@ -101,6 +108,10 @@ func say(_ line: String) {
     }
 }
 
+guard CommandLine.arguments.count == 2 else {
+    FileHandle.standardError.write(Data("usage: harness <path-to-GammaWatchdog>\n".utf8))
+    exit(64)
+}
 let harness = MainActor.assumeIsolated { Harness() }
 MainActor.assumeIsolated { harness.start() }
 Thread.detachNewThread {
