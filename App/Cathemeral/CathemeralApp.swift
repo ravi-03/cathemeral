@@ -6,13 +6,11 @@ import SwiftUI
 struct CathemeralApp: SwiftUI.App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
+    /// The menu bar icon and popover are AppKit's (`StatusItemController`), since a SwiftUI menu bar
+    /// extra can't tell a right-click from a click. A scene is still required, and an empty Settings
+    /// scene shows nothing.
     var body: some Scene {
-        MenuBarExtra {
-            PopoverView(engine: appDelegate.engine)
-        } label: {
-            StatusIcon(engine: appDelegate.engine)
-        }
-        .menuBarExtraStyle(.window)
+        Settings { EmptyView() }
     }
 }
 
@@ -25,6 +23,10 @@ struct CathemeralApp: SwiftUI.App {
         selfID: AppID(bundleID: Bundle.main.bundleIdentifier ?? "io.github.ravi-03.cathemeral"),
         displays: Displays.active
     )
+
+    private let loginItem = LoginItem()
+    private lazy var settingsWindow = SettingsWindow(engine: engine, loginItem: loginItem)
+    private var statusItem: StatusItemController?
 
     private lazy var activations = ActivationMonitor(
         onActivating: { [engine] app, display in engine.appActivating(app, on: display) },
@@ -56,6 +58,9 @@ struct CathemeralApp: SwiftUI.App {
         displayMonitor.start()
         activations.start()
         trackWindowsWhileNeeded()
+        statusItem = StatusItemController(engine: engine, loginItem: loginItem) { [weak self] in
+            self?.settingsWindow.show()
+        }
     }
 
     /// Runs the window tracker only while something could be dimmed, and keeps it that way as
@@ -63,9 +68,9 @@ struct CathemeralApp: SwiftUI.App {
     private func trackWindowsWhileNeeded() {
         let needed = withObservationTracking {
             engine.needsWindowTracking
-        } onChange: {
+        } onChange: { [weak self] in
             // Called before the change lands, so look again once it has.
-            Task { @MainActor [weak self] in self?.trackWindowsWhileNeeded() }
+            Task { @MainActor in self?.trackWindowsWhileNeeded() }
         }
         if needed { windowTracker.start() } else { windowTracker.stop() }
     }
@@ -78,43 +83,5 @@ struct CathemeralApp: SwiftUI.App {
         safetyNet.stop()
         engine.restore()
         engine.savePendingChanges()
-    }
-}
-
-/// The menu bar icon, with a dot while any display is paused.
-struct StatusIcon: View {
-    let engine: DimmingEngine
-
-    var body: some View {
-        Image(nsImage: Self.image(withDot: engine.hasPausedDisplay))
-    }
-
-    /// The menu bar shows only a label's image, not overlays, so the dot is drawn into the image.
-    /// A template image, so it follows the menu bar's colour.
-    private static func image(withDot: Bool) -> NSImage {
-        let configuration = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular)
-        guard
-            let sun = NSImage(systemSymbolName: "sun.max", accessibilityDescription: "Cathemeral")?
-                .withSymbolConfiguration(configuration)
-        else { return NSImage() }
-        guard withDot else { return sun }
-        let dot: CGFloat = 6
-        let image = NSImage(size: sun.size, flipped: false) { bounds in
-            sun.draw(in: bounds)
-            // Clear a ring around the dot so it stands apart from the rays.
-            NSGraphicsContext.current?.compositingOperation = .clear
-            NSBezierPath(
-                ovalIn: NSRect(x: bounds.maxX - dot - 2, y: bounds.maxY - dot - 2, width: dot + 2, height: dot + 2)
-            )
-            .fill()
-            NSGraphicsContext.current?.compositingOperation = .sourceOver
-            NSColor.black.setFill()
-            NSBezierPath(ovalIn: NSRect(x: bounds.maxX - dot - 1, y: bounds.maxY - dot - 1, width: dot, height: dot))
-                .fill()
-            return true
-        }
-        image.isTemplate = true
-        image.accessibilityDescription = "Cathemeral: a display is paused"
-        return image
     }
 }

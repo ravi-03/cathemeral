@@ -76,7 +76,7 @@ public enum Displays {
         return visible
     }
 
-    @MainActor private static func visibleApp(_ pid: pid_t) -> App? {
+    @MainActor static func visibleApp(_ pid: pid_t) -> App? {
         guard let running = NSRunningApplication(processIdentifier: pid), !running.isHidden, !running.isTerminated
         else { return nil }
         return App(running: running)
@@ -84,7 +84,7 @@ public enum Displays {
 
     /// On-screen normal (layer 0) windows, front to back, each with its owner and the display it
     /// overlaps most.
-    private static func normalWindows() -> [(pid: pid_t, display: DisplayID)] {
+    static func normalWindows() -> [(pid: pid_t, display: DisplayID)] {
         let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
         guard let windows = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
             return []

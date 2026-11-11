@@ -47,3 +47,15 @@ public struct App: Hashable, Sendable {
         self.name = name
     }
 }
+
+/// A running app with windows on screen, for the popover's list of other open windows.
+public struct OpenApp: Hashable, Sendable {
+    public let app: App
+    /// How many of its windows are on screen.
+    public let windowCount: Int
+
+    public init(app: App, windowCount: Int) {
+        self.app = app
+        self.windowCount = windowCount
+    }
+}

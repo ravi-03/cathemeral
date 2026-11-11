@@ -196,6 +196,7 @@ import Testing
 
         #expect(!engine.hasAppSetting(for: notion.id))
         #expect(backend.levels[builtIn] == Level(0.7))
+        clock.advance(by: DimmingEngine.settingsApplyInterval)
         engine.setDefaultLevel(Level(0.5))
         #expect(backend.levels[builtIn] == Level(0.5))
         clock.advance(by: DimmingEngine.saveDelay)
@@ -783,5 +784,180 @@ import Testing
 
         engine.resume(external)
         #expect(!engine.hasPausedDisplay)
+    }
+
+    // MARK: Master switch
+
+    @Test func turningDimmingOffFadesEveryDimmedDisplayToFullAndWritesNothingMoreUntilItIsOn() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        engine.appActivated(terminal, on: external)
+
+        engine.setEnabled(false)
+
+        #expect(!engine.isEnabled)
+        #expect(backend.levels == [builtIn: .full, external: .full])
+        #expect(backend.ramps[builtIn] == DimmingEngine.switchRamp)
+        let writesAfterFade = backend.applied.count
+
+        engine.appActivated(notion, on: external)
+        engine.setLevel(Level(0.3), for: notion.id)
+        engine.displaysChanged(to: [builtIn, external])
+        clock.advance(by: .seconds(1))
+
+        #expect(backend.applied.count == writesAfterFade)
+    }
+
+    @Test func turningDimmingBackOnFadesEveryOwnedDisplayToItsOwnersLevel() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        store.saved.appSettings[terminal.id] = Level(0.6)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        engine.setEnabled(false)
+        engine.appActivated(terminal, on: external)
+
+        engine.setEnabled(true)
+
+        #expect(backend.levels == [builtIn: Level(0.4), external: Level(0.6)])
+        #expect(backend.ramps == [builtIn: DimmingEngine.switchRamp, external: DimmingEngine.switchRamp])
+    }
+
+    @Test func whileDimmingIsOffWindowsNeedNoTrackingAndTablesAreNotChecked() {
+        store.saved.defaultLevel = Level(0.5)
+        let engine = makeEngine()
+
+        engine.setEnabled(false)
+        engine.visibleAppsChanged([builtIn: [notion]])
+        #expect(!engine.needsWindowTracking)
+        #expect(backend.checkCount == 0)
+
+        engine.setEnabled(true)
+        #expect(engine.needsWindowTracking)
+    }
+
+    @Test func theMasterSwitchIsSavedAndUsedOnTheNextLaunch() {
+        let engine = makeEngine()
+
+        engine.setEnabled(false)
+        clock.advance(by: DimmingEngine.saveDelay)
+
+        #expect(store.saved.isEnabled == false)
+        #expect(!makeEngine().isEnabled)
+    }
+
+    @Test func aDisplayChangeWhileDimmingIsOffWritesNothing() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        engine.setEnabled(false)
+        engine.setSuspended(true)
+        let writesBefore = backend.applied.count
+
+        engine.setSuspended(false)
+        engine.displaysChanged(to: [builtIn])
+
+        #expect(backend.applied.count == writesBefore)
+    }
+
+    // MARK: Slider throttle
+
+    @Test func draggingTheOwnersSliderReachesTheScreenAtMost30TimesASecondEndingOnTheLastLevel() {
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        let writesBefore = backend.applied.count
+
+        // A drag reporting a new level every 5 ms for half a second.
+        for step in 0..<100 {
+            engine.setLevel(Level(1.0 - Double(step) * 0.005), for: notion.id)
+            clock.advance(by: .milliseconds(5))
+        }
+        clock.advance(by: .seconds(1))
+
+        let writes = backend.applied.dropFirst(writesBefore)
+        #expect(writes.count <= 16)
+        #expect(writes.allSatisfy { $0.ramp == .zero })
+        #expect(backend.levels[builtIn] == Level(1.0 - 99 * 0.005))
+    }
+
+    @Test func theFirstSliderChangeReachesTheScreenStraightAway() {
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        engine.setLevel(Level(0.5), for: notion.id)
+        clock.advance(by: .seconds(1))
+
+        engine.setLevel(Level(0.4), for: notion.id)
+
+        #expect(backend.levels[builtIn] == Level(0.4))
+    }
+
+    // MARK: Other open windows
+
+    @Test func otherOpenAppsLeavesOutDisplayOwnersAndIgnoredAppsAndSortsByName() {
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        let open = [
+            OpenApp(app: terminal, windowCount: 2),
+            OpenApp(app: notion, windowCount: 1),
+            OpenApp(app: cathemeral, windowCount: 1),
+            OpenApp(app: safari, windowCount: 3),
+        ]
+
+        #expect(
+            engine.otherOpenApps(open) == [
+                OpenApp(app: safari, windowCount: 3),
+                OpenApp(app: terminal, windowCount: 2),
+            ])
+    }
+
+    @Test func theOwnerOfAPausedDisplayIsListedAmongTheOtherOpenApps() {
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+
+        engine.displayPaused(builtIn)
+
+        #expect(engine.otherOpenApps([OpenApp(app: notion, windowCount: 1)]) == [OpenApp(app: notion, windowCount: 1)])
+    }
+
+    // MARK: Status icon
+
+    @Test func theIconShowsWhetherAnyDisplayIsDimmedOrDimmingIsOff() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        #expect(engine.dimmingState == .nothingDimmed)
+
+        engine.appActivated(terminal, on: builtIn)
+        #expect(engine.dimmingState == .nothingDimmed)
+
+        engine.appActivated(notion, on: external)
+        #expect(engine.dimmingState == .dimmed)
+
+        engine.setEnabled(false)
+        #expect(engine.dimmingState == .off)
+    }
+
+    @Test func aPausedOrSuspendedDisplayDoesNotCountAsDimmed() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+
+        engine.displayPaused(builtIn)
+        #expect(engine.dimmingState == .nothingDimmed)
+
+        engine.resume(builtIn)
+        engine.setSuspended(true)
+        #expect(engine.dimmingState == .nothingDimmed)
+    }
+
+    @Test func aSettingsChangeDuringASwitchNeverBrightensADisplayDimmedEarly() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(terminal, on: builtIn)
+
+        engine.appActivating(notion, on: builtIn)
+        engine.setLevel(Level(0.9), for: terminal.id)
+        clock.advance(by: .seconds(1))
+
+        #expect(backend.levels[builtIn] == Level(0.4))
     }
 }

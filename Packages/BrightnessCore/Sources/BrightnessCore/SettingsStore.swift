@@ -9,9 +9,13 @@ public struct Settings: Equatable, Sendable {
     /// The level for any app without its own app setting.
     public var defaultLevel: Level
 
-    public init(appSettings: [AppID: Level] = [:], defaultLevel: Level = .full) {
+    /// The master switch. While off, every display shows its original curve.
+    public var isEnabled: Bool
+
+    public init(appSettings: [AppID: Level] = [:], defaultLevel: Level = .full, isEnabled: Bool = true) {
         self.appSettings = appSettings
         self.defaultLevel = defaultLevel
+        self.isEnabled = isEnabled
     }
 }
 
@@ -42,7 +46,10 @@ public struct Settings: Equatable, Sendable {
 @MainActor public final class FileSettingsStore: SettingsStore {
     /// The layout version written to the file. Bump it, and migrate older files on load, whenever
     /// the layout changes.
-    public nonisolated static let schemaVersion = 1
+    ///
+    /// - 1: the default level and app settings.
+    /// - 2: adds `enabled`, the master switch. A version 1 file loads with dimming on.
+    public nonisolated static let schemaVersion = 2
 
     /// Where the app keeps its settings: `~/Library/Application Support/Cathemeral/settings.json`.
     public nonisolated static var standardFileURL: URL {
@@ -55,14 +62,14 @@ public struct Settings: Equatable, Sendable {
         self.fileURL = fileURL
     }
 
-    /// The settings in the file. If there is no file, the defaults. If the file can't be read as
-    /// this schema version, it is renamed with a date suffix so nothing is lost, and the defaults
+    /// The settings in the file, migrated from an older schema version if need be. If there is no
+    /// file, the defaults. If the file can't be read as this or an older schema version, it is renamed with a date suffix so nothing is lost, and the defaults
     /// load.
     public func load() -> Settings {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return Settings() }
         do {
             let file = try JSONDecoder().decode(SettingsFile.self, from: Data(contentsOf: fileURL))
-            guard file.schemaVersion == Self.schemaVersion else {
+            guard (1...Self.schemaVersion).contains(file.schemaVersion) else {
                 throw UnknownSchemaVersion(version: file.schemaVersion)
             }
             return file.settings
@@ -126,10 +133,13 @@ private struct SettingsFile: Codable {
     var schemaVersion: Int
     var defaultLevel: Double
     var appSettings: [Entry]
+    /// Missing before schema version 2, meaning on.
+    var enabled: Bool?
 
     init(_ settings: Settings) {
         schemaVersion = FileSettingsStore.schemaVersion
         defaultLevel = settings.defaultLevel.fraction
+        enabled = settings.isEnabled
         appSettings = settings.appSettings
             .sorted { $0.key.rawValue < $1.key.rawValue }
             .map { app, level in
@@ -144,6 +154,6 @@ private struct SettingsFile: Codable {
                 appSettings[app] = Level(entry.level)
             }
         }
-        return Settings(appSettings: appSettings, defaultLevel: Level(defaultLevel))
+        return Settings(appSettings: appSettings, defaultLevel: Level(defaultLevel), isEnabled: enabled ?? true)
     }
 }

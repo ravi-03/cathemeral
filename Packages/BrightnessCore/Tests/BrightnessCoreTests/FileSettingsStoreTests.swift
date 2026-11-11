@@ -16,6 +16,7 @@ import Testing
         settings.defaultLevel = Level(0.8)
         settings.appSettings[notion.id] = Level(0.4)
         settings.appSettings[unbundled] = Level(0.25)
+        settings.isEnabled = false
 
         makeStore().save(settings)
 
@@ -24,6 +25,19 @@ import Testing
 
     @Test func aMissingFileLoadsTheDefaults() {
         #expect(makeStore().load() == Settings())
+    }
+
+    @Test func aFileFromSchemaVersion1LoadsWithDimmingOn() throws {
+        try write(
+            """
+            {"schemaVersion": 1, "defaultLevel": 0.8,
+             "appSettings": [{"bundleID": "notion.id", "level": 0.4}]}
+            """)
+
+        let settings = makeStore().load()
+
+        #expect(settings == Settings(appSettings: [notion.id: Level(0.4)], defaultLevel: Level(0.8), isEnabled: true))
+        #expect(try setAsideFiles().isEmpty)
     }
 
     @Test func levelsBelowTheFloorInTheFileLoadAsTenPercent() throws {

@@ -24,6 +24,10 @@ _Avoid_: profile, preset, rule
 The level for any app the user has not given its own level. It applies only to an app that owns a display, never to an unowned display.
 _Avoid_: default brightness, global level
 
+**Master switch**:
+Turns all dimming off and back on. While it's off, every display shows 100%, and app settings can still be changed for later. The menu calls it Enable/Disable.
+_Avoid_: disabled display, global toggle
+
 **System brightness**:
 The display's backlight setting, controlled by macOS through the brightness keys and Control Center. This app never changes it.
 _Avoid_: display brightness, backlight level

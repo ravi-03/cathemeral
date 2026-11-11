@@ -8,10 +8,16 @@ import Observation
     @ObservationIgnored private let clock: DimmingClock
     @ObservationIgnored private let ignoredApps: Set<AppID>
     @ObservationIgnored private var pendingSave: (any ScheduledAction)?
+    @ObservationIgnored private var lastSettingsApply: ContinuousClock.Instant?
+    @ObservationIgnored private var pendingSettingsApply: (any ScheduledAction)?
 
     /// How long a change caused by switching apps fades over. Settings changes, such as a slider
     /// drag, apply straight away.
     public static let switchRamp = Duration.milliseconds(150)
+
+    /// The shortest gap between two settings changes reaching the screen, so a slider drag writes at
+    /// most 30 times a second. A change inside the gap waits for its end, and the last one always lands.
+    public static let settingsApplyInterval = Duration.seconds(1) / 30
 
     /// How long the engine waits after the last change before saving, so dragging a slider
     /// writes the file once.
@@ -30,6 +36,9 @@ import Observation
 
     /// While suspended, every display keeps its original curve and nothing is written.
     private var isSuspended = false
+
+    /// Whether levels reach the screen: dimming is on and not suspended.
+    private var isShowingLevels: Bool { settings.isEnabled && !isSuspended }
 
     /// The app reported by `appActivating` whose `appActivated` hasn't arrived yet. Displays may
     /// be dimmed early for it.
@@ -60,6 +69,27 @@ import Observation
     /// Whether `display` takes levels, and if not, why.
     public func status(of display: DisplayID) -> DisplayStatus {
         notDimming[display] ?? .dimming
+    }
+
+    /// The apps in `open` not already shown on a display card, for the popover's list of other open
+    /// windows, sorted by name. Leaves out the owner of each display that is dimming, and ignored
+    /// apps. The owner of a paused or unsupported display stays in, since its card doesn't show it.
+    public func otherOpenApps(_ open: [OpenApp]) -> [OpenApp] {
+        let onCards = Set(owners.filter { status(of: $0.key) == .dimming }.values.map(\.id))
+        return
+            open
+            .filter { !onCards.contains($0.app.id) && !ignoredApps.contains($0.app.id) }
+            .sorted { $0.app.name.localizedStandardCompare($1.app.name) == .orderedAscending }
+    }
+
+    /// Whether dimming is off, or else whether any display is dimmed right now, for the status icon.
+    /// A display counts as dimmed when it is dimming and its target is below 100%; a paused or
+    /// unsupported display, or any display while suspended, doesn't.
+    public var dimmingState: DimmingState {
+        guard settings.isEnabled else { return .off }
+        let anyDimmed =
+            !isSuspended && owners.keys.contains { status(of: $0) == .dimming && target(for: $0) < .full }
+        return anyDimmed ? .dimmed : .nothingDimmed
     }
 
     /// Whether any display is paused, for the dot on the status icon.
@@ -139,7 +169,7 @@ import Observation
         }
         // This is the 1 Hz tick: another app's write, or a reset when a gamma writer exits, is
         // announced by nothing, so the backend reads its tables back.
-        if !isSuspended { backend.checkTables() }
+        if isShowingLevels { backend.checkTables() }
     }
 
     /// `app` was hidden or quit. Every display it owned passes straight away to its topmost visible
@@ -173,11 +203,38 @@ import Observation
     /// from its original curve back to its owner's level.
     public func setSuspended(_ suspended: Bool) {
         guard suspended != isSuspended else { return }
+        let wasShowing = isShowingLevels
         isSuspended = suspended
-        if suspended {
-            backend.restore()
-        } else {
+        guard isShowingLevels != wasShowing else { return }
+        if isShowingLevels {
             showEveryOwnersLevel(over: Self.switchRamp)
+        } else {
+            // The screen is locked or asleep, so nobody sees this jump.
+            backend.restore()
+        }
+    }
+
+    /// The master switch.
+    public var isEnabled: Bool { settings.isEnabled }
+
+    /// Turns all dimming off or back on, and saves the choice. Turned off, every dimmed display fades
+    /// to 100%, which is its original curve, and nothing more is written. Activations still change
+    /// ownership and settings still change, but windows aren't tracked (`needsWindowTracking`).
+    /// Turned back on, every owned display fades to its owner's level; the window tracker, started
+    /// again, hands over any display whose owner left meanwhile within a second.
+    public func setEnabled(_ enabled: Bool) {
+        guard enabled != settings.isEnabled else { return }
+        let wasShowing = isShowingLevels
+        settings.isEnabled = enabled
+        scheduleSave()
+        guard isShowingLevels != wasShowing else { return }
+        if isShowingLevels {
+            showEveryOwnersLevel(over: Self.switchRamp)
+        } else {
+            // The user is watching, so fade rather than restore, which would jump.
+            for (display, level) in shown where level < .full {
+                backend.apply(.full, to: display, over: Self.switchRamp)
+            }
         }
     }
 
@@ -217,10 +274,11 @@ import Observation
         settingsChanged()
     }
 
-    /// Whether anything could be dimmed: the engine isn't suspended, and the default level or some
-    /// app setting is below 100%. Only then is it worth watching windows for ownership changes.
+    /// Whether anything could be dimmed: dimming is on, the engine isn't suspended, and the default
+    /// level or some app setting is below 100%. Only then is it worth watching windows for ownership
+    /// changes.
     public var needsWindowTracking: Bool {
-        !isSuspended && (settings.defaultLevel < .full || settings.appSettings.values.contains { $0 < .full })
+        isShowingLevels && (settings.defaultLevel < .full || settings.appSettings.values.contains { $0 < .full })
     }
 
     /// The app's own app setting, or the default level if it has none.
@@ -238,6 +296,8 @@ import Observation
 
     /// Puts every display back to its original curve. Call before quitting.
     public func restore() {
+        pendingSettingsApply?.cancel()
+        pendingSettingsApply = nil
         backend.restore()
     }
 
@@ -257,7 +317,7 @@ import Observation
     private func show(_ level: Level, on display: DisplayID, over ramp: Duration) {
         guard notDimming[display] == nil else { return }
         shown[display] = level
-        if !isSuspended { backend.apply(level, to: display, over: ramp) }
+        if isShowingLevels { backend.apply(level, to: display, over: ramp) }
     }
 
     private func stopShowing(on display: DisplayID, because status: DisplayStatus) {
@@ -275,13 +335,37 @@ import Observation
         }
     }
 
-    /// Shows each owner's new level straight away, and saves the settings once the save delay passes with no
-    /// further change.
+    /// Shows each owner's new level without a ramp, at most once per `settingsApplyInterval`, and
+    /// saves the settings once the save delay passes with no further change.
     private func settingsChanged() {
+        scheduleSave()
+        // A change already waiting will pick this one up.
+        guard pendingSettingsApply == nil else { return }
+        let sinceLast = lastSettingsApply.map { clock.now - $0 } ?? Self.settingsApplyInterval
+        if sinceLast >= Self.settingsApplyInterval {
+            applySettings()
+        } else {
+            pendingSettingsApply = clock.schedule(after: Self.settingsApplyInterval - sinceLast) { [weak self] in
+                self?.pendingSettingsApply = nil
+                self?.applySettings()
+            }
+        }
+    }
+
+    /// Shows each owner's level straight away where it changed.
+    private func applySettings() {
+        lastSettingsApply = clock.now
         // Only displays whose level changed, so a display still fading after a switch isn't cut short.
         for display in owners.keys where shown[display] != target(for: display) {
+            // As in `visibleAppsChanged`: mid-switch, never brighten a display dimmed early for the app
+            // coming to the front. `appActivated` sets it right.
+            if activating != nil, target(for: display) > shown[display, default: .full] { continue }
             show(target(for: display), on: display, over: .zero)
         }
+    }
+
+    /// Saves the settings once the save delay passes with no further change.
+    private func scheduleSave() {
         pendingSave?.cancel()
         pendingSave = clock.schedule(after: Self.saveDelay) { [weak self] in
             self?.savePendingChanges()
@@ -299,4 +383,14 @@ public enum DisplayStatus: Sendable {
     /// Levels don't take on it, as on some HDR, Sidecar or AirPlay displays
     /// (`CONTEXT.md`, unsupported display).
     case unsupported
+}
+
+/// What the status icon shows.
+public enum DimmingState: Sendable {
+    /// The master switch is off.
+    case off
+    /// Dimming is on, but every display shows 100%.
+    case nothingDimmed
+    /// At least one display is dimmed.
+    case dimmed
 }
