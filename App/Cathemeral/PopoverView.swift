@@ -48,7 +48,7 @@ struct MasterSwitch: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Toggle(isOn: Binding(get: { engine.isEnabled }, set: engine.setEnabled)) {
+            Toggle(isOn: Binding(get: { engine.isEnabled }, set: { engine.setEnabled($0) })) {
                 Text("Cathemeral").font(.headline)
             }
             .toggleStyle(.switch)
@@ -131,7 +131,7 @@ struct LaunchAtLoginToggle: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Toggle("Launch at login", isOn: Binding(get: { loginItem.isEnabled }, set: loginItem.set))
+            Toggle("Launch at login", isOn: Binding(get: { loginItem.isEnabled }, set: { loginItem.set($0) }))
                 .toggleStyle(.checkbox)
             if loginItem.needsApproval {
                 Button("Allow in System Settings") { loginItem.openSystemSettings() }
