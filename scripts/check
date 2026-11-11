@@ -53,6 +53,13 @@ echo "==> build (Cathemeral.app)"
 quietly xcodebuild -project Cathemeral.xcodeproj -scheme Cathemeral -configuration Debug \
     -destination "platform=macOS,arch=$(uname -m)" -derivedDataPath build/DerivedData -quiet build
 
+# The safety net needs the watchdog inside the bundle, next to the app (SafetyNet, ticket 09).
+watchdog=build/DerivedData/Build/Products/Debug/Cathemeral.app/Contents/MacOS/GammaWatchdog
+if [[ ! -x "$watchdog" ]]; then
+    echo "The app bundle has no watchdog at $watchdog (check the Embed Watchdog build phase)." >&2
+    exit 1
+fi
+
 echo "==> build (Tools)"
 quietly swift build --package-path Tools
 

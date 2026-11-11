@@ -10,6 +10,10 @@
 # left dim.
 set -euo pipefail
 cd "$(dirname "$0")"
+if pgrep -x Cathemeral >/dev/null; then
+    echo "Quit Cathemeral first: a second gamma writer spoils every reading, and its exit resets the harness's tables." >&2
+    exit 1
+fi
 swift build -q
 bin=.build/debug
 work=$(mktemp -d)
@@ -184,8 +188,11 @@ echo "quit" >&3
 harness_exited
 expect "after quit" 1.0000
 
-for run_log in "$work"/log.*; do
-    echo "--- harness log ($(basename "$run_log"))"
-    cat "$run_log"
-done
+# The harness logs are only worth reading when something failed.
+if ((failures > 0)); then
+    for run_log in "$work"/log.*; do
+        echo "--- harness log ($(basename "$run_log"))"
+        cat "$run_log"
+    done
+fi
 exit $((failures > 0))

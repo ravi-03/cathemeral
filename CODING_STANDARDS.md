@@ -8,6 +8,7 @@ The screen must never be left dim. See `docs/platform/gamma.md` for how gamma wo
 
 - **Every exit path restores gamma.** Any code that writes gamma must restore it on every way out: normal return, thrown errors, early returns, signal handlers, and failure paths in tests and tools. When a check or tool starts child processes that write gamma, its failure path ends those children. A restore call in the parent can't undo a child's writes.
 - **The watchdog and any helper that only exists to restore never write gamma**, apart from the restorer's single write-back just before it exits. Writing from a long-lived helper makes that helper's own exit reset the app's dimming.
+- **Timing guarantees hold in the worst case.** For any promised bound (restore within 2 s, no restore for pauses under 1 s), add up the worst-case phase, interval and spawn time. Count a margin under about 10% of the bound as a breach, even when the spec chose the numbers.
 - **Every level is clamped to the 10% floor** before it reaches a gamma write, including levels loaded from disk, computed during ramps, or set by hotkeys.
 - **Gamma tables are computed by scaling the captured original curve**, never by building a linear ramp. Level 1.0 must give back the original table exactly.
 

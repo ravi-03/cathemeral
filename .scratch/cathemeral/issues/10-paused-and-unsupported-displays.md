@@ -13,3 +13,10 @@
 - [ ] Quitting another gamma-writing app while a display is dimmed re-applies the dimming within about 1 s, without pausing the display.
 - [ ] A display where gamma doesn't apply is shown as "unsupported".
 - [ ] DimmingEngine tests confirm a paused display gets no target, and Resume restores its target.
+
+## Comments
+
+### 2026-11-11: from the ticket 09 retro (agent)
+
+- The heartbeat interval (`SafetyNet.heartbeatInterval`, 250 ms) and the watchdog's timeout (`heartbeatTimeout` in `App/GammaWatchdog/main.swift`, 1500 ms) only work together but live in two files. While touching the safety net here, have `SafetyNet` pass `--timeout-ms` when it launches the watchdog, so one file owns both numbers.
+- Ticket 09 left two gaps for this ticket's 1 Hz table re-check to cover: a false watchdog restore just after wake, and a re-apply wiped by a reset that lands after it. In both cases the table equals the captured original, which this ticket re-applies silently.
