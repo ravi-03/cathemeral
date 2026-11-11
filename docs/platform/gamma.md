@@ -35,7 +35,7 @@ Measured with `Tools/switch-timing` during tickets 04 and 05, on the built-in 60
 - **A write shows from the first refresh after the call returns.** Only the last table written before a refresh is ever seen, so two writes inside one refresh lose the first, and a write that returns after its refresh shows one refresh late.
 - **The first display link is slow to create.** The first `NSScreen.displayLink` in a process took 81 ms, blocking the main thread. After that, the link reports a steady refresh (16.67 ms here), and a paused link's first tick can be up to two refreshes away.
 - **Gamma reads stall too.** While WindowServer is busy with an app switch, `CGGetDisplayTransferByTable` from another process can block for about 50 ms, so a probe can miss frames. Check the time between samples before calling a big step a jump.
-- **Fast `open -b` bursts confuse the frontmost app.** Opening two apps 60 ms apart can leave `NSWorkspace.frontmostApplication` naming one app while the other's window is on top. Read the window list, not the frontmost app, when a check needs to know what is showing.
+- How macOS reports the frontmost app and its windows is in `apps-and-windows.md`.
 
 ## Checking it on this Mac
 

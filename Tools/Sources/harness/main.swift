@@ -67,6 +67,15 @@ func say(_ line: String) {
             guard let fraction = Double(command[2]) else { return say("bad fraction: \(command[2])") }
             engine.setLevel(Level(fraction), for: AppID(bundleID: String(command[1])))
             say("set \(command[1]) \(Level(fraction))")
+        case ("nudge", 3):
+            // A level hotkey, as `Hotkeys` in the app handles it, minus the key press and the lookup
+            // of the frontmost app.
+            guard let direction: NudgeDirection = ["up": .up, "down": .down][String(command[2])] else {
+                return say("bad direction: \(command[2])")
+            }
+            let id = AppID(bundleID: String(command[1]))
+            let level = engine.nudgeLevel(of: App(id: id, name: id.rawValue), direction)
+            say("nudge \(command[1]) \(command[2]): \(level?.description ?? "ignored")")
         case ("activate", 2):
             let id = AppID(bundleID: String(command[1]))
             report(App(id: id, name: id.rawValue), on: Displays.builtIn)

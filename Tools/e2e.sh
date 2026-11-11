@@ -3,7 +3,7 @@
 # activation monitor, with every result read back by `peek`, a separate process that never
 # writes gamma. Not part of scripts/check. Sections, run in this order:
 #
-#   switching   switches between Terminal and Finder, plus settings, hide, displays, lock (~40 s)
+#   switching   switches between Terminal and Finder, plus settings, hotkeys, hide, displays, lock (~45 s)
 #   safety      termination signals, kill -9, a hang caught by the watchdog, a dead watchdog (~45 s)
 #   paused      paused displays and resets, with `other-app` standing in for f.lux (~60 s)
 #
@@ -218,8 +218,16 @@ section_switching() {
     expect "owner's level changes live" 0.5500
     echo "set com.apple.Terminal 0.02" >&3
     expect "level below the floor" 0.1000
+    echo "nudge com.apple.Terminal down" >&3
+    expect "a level hotkey stops at the floor" 0.1000
     echo "set com.apple.Terminal 0.4" >&3
-    expect "40% app in front before hiding" 0.4000
+    expect "40% app in front before hotkeys" 0.4000
+    echo "nudge com.apple.Terminal down" >&3
+    expect "a level hotkey steps the owner down 10%" 0.3000
+    echo "nudge com.apple.Spotlight down" >&3
+    expect "a level hotkey over Spotlight changes nothing" 0.3000
+    echo "nudge com.apple.Terminal up" >&3
+    expect "a level hotkey steps the owner up 10%" 0.4000
     echo "hide com.apple.Terminal" >&3
     expect "hiding the owner hands the display over (nothing else set, so 100%)" 1.0000
     open -b com.apple.Terminal
