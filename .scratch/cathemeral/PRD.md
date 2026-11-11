@@ -172,9 +172,10 @@ The screen must never be left stuck dark. Cathemeral restores the original gamma
 
 ### Paused displays
 
-- When any other gamma-writing process exits (f.lux quitting, our own restorer), WindowServer silently resets every display, and nothing notifies us. So while a display is dimmed, the controller also reads its table back on the 1 Hz window tick. A table equal to the captured original means it was reset: re-apply silently, without counting a mismatch. A table equal to what we wrote is fine. Anything else counts as a mismatch.
-- After each write the controller reads the table back. Three mismatches in a row mean another app owns that display's gamma. That display is paused and gets no more writes, while other displays carry on.
-- Resume re-captures the display's current curve as its original and re-applies the owner's level. Another mismatch pauses it again. Nothing resumes automatically.
+- The controller reads each display's table back after its writes and on the 1 Hz window tick. Another app's colours on three ticks in a row pause that display: it gets no more writes, while other displays carry on.
+- When any other gamma-writing process exits (f.lux quitting, our own restorer), WindowServer silently resets every display, and nothing notifies us. A reset is re-applied silently and never pauses the display.
+- Resume re-captures the display's current curve as its original and re-applies the owner's level. Another takeover pauses it again. Nothing resumes automatically.
+- The exact read-back rules (what resets the count, what counts as a reset after a Resume, displays at 100%) are in `docs/platform/gamma.md`, "Reading tables back". `TableWatch` implements them.
 
 ### Safety net
 

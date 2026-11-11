@@ -14,8 +14,17 @@ These facts were measured by the ticket 01 spike on an M1 with only the built-in
 
 - **The screen can't be left dim by a crash.** When the app dies, macOS restores the screen itself.
 - **Restoring a hung app's gamma from outside needs a restorer.** The restorer is a one-shot process that writes each display's current table back unchanged and exits. Its exit triggers the reset. The watchdog (`App/GammaWatchdog`) runs it as `GammaWatchdog restore` on a heartbeat timeout, waits 200 ms for the reset to land, then signals the app, which fades its levels back in (`SafetyNet`, `DimmingEngine.restoredFromOutside`). The watchdog itself never writes gamma, because then its own exit would reset the app's dimming.
-- **Our dimming is silently wiped when any other gamma writer exits** (f.lux, Lunar, a calibration tool, the restorer). Nothing notifies the app. While a display is dimmed, re-check its table on the 1 Hz tick. A table equal to the captured original means it was reset: re-apply silently. Any other table counts as a mismatch toward pausing the display (ticket 10).
-- **A read straight after a write returns that write.** `GammaController` reads each table back on its writer queue as soon as the write returns, and `Tools/e2e.sh` (ticket 10) found no false mismatches across every switch and fade. A read-back is taken only after a fade's last frame, since a read can stall during an app switch (see Timing).
+- **Our dimming is silently wiped when any other gamma writer exits** (f.lux, Lunar, a calibration tool, the restorer). Nothing notifies the app, so it reads its tables back (next section).
+
+## Reading tables back
+
+Ticket 10 found that each rule here, taken any other way, either fights another app or pauses for nothing. `TableWatch` (BrightnessCore) implements them, `GammaController` reads the tables, and `Tools/e2e.sh paused` checks them on the real screen.
+
+- **A read straight after a write returns that write.** So a read-back after our own write proves only that the write took. It's taken after a fade's last frame or a single write (a read can stall during an app switch, see Timing), and its only uses are spotting an unsupported display (three writes that leave the original on screen before any write has taken) and a reset landing just after the write.
+- **Only the 1 Hz tick counts toward pausing.** Another app's table on three ticks in a row pauses the display. Only a tick where our table survived starts the count again. If our own write's read-back did, every app switch would write over f.lux, read back as ours, and the two would fight for as long as the user kept switching.
+- **A reset is re-applied straight away and never counts as another app's table.** A reset is a table equal to the captured original, or, after a Resume, the curve from before it: Resume captures the other app's colours as the original, and when that app quits the display resets to the earlier curve. That earlier curve is then captured as the original.
+- **A reset on three ticks in a row pauses too.** Something keeps writing the original back, and re-applying would flash dim and bright every second.
+- **A display at 100% has nothing of ours on screen**, so another curve there is no fight. It's captured silently as the original, so the next dim scales what's on screen rather than writing over it.
 - **Writes can block.** One `CGSetDisplayTransferByTable` call takes about 0.06 ms back-to-back, but often 5–15 ms and up to about 30 ms when writes are spaced out or WindowServer is busy with an app switch. Keep writes off the main actor.
 
 ## Timing

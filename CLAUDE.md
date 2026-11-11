@@ -1,6 +1,6 @@
 # cathemeral
 
-**Real screen:** after changing `BrightnessPlatform`, `Fader`, `App/GammaWatchdog`, or how `DimmingEngine` applies levels, run `Tools/e2e.sh`. It takes over the screen for about a minute, so `scripts/check` and CI can't run it. See `Tools/README.md`.
+**Real screen:** after changing `BrightnessPlatform`, `Fader`, `App/GammaWatchdog`, or how `DimmingEngine` applies levels, run `Tools/e2e.sh` in the background, or just the affected section (`Tools/e2e.sh paused`). It takes over the screen for about 2.5 minutes, so `scripts/check` and CI can't run it. See `Tools/README.md`.
 
 ## Agent skills
 
