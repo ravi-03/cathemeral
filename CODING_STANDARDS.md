@@ -13,10 +13,11 @@ The screen must never be left dim. See `docs/platform/gamma.md` for how gamma wo
 
 ## No flash
 
-Switching apps must never show an app brighter than its own level, or jump. `docs/platform/gamma.md` (Timing) has the measurements behind these rules.
+No change to a display's level may show an app brighter than its own level, or jump. `docs/platform/gamma.md` (Timing) has the measurements behind these rules.
 
-- **Dim early, brighten late.** A switch to a dimmer app dims as soon as macOS announces the activation. A switch to a brighter app waits until that app's window is in front. Any new path that changes a display's level for a switch (hotkeys, display changes, resuming a paused display) keeps this order.
-- **Every fade goes through a `Fader`.** A fade continues from the level on screen, moves at most one refresh along its curve per frame, and shows one frame per refresh. Code that writes a table straight to its target outside a `Fader` is a jump, unless it is a settings change (a slider or "Use default") or there is no display link to fade with.
+- **Dim early, brighten late.** Every path that changes a display's level keeps this order: activation, handover (hide, quit, the window tracker), coming back from lock or sleep, hotkeys, resuming a paused display. A change to a dimmer level happens as soon as it is announced. A change to a brighter level waits until the brighter app's window is in front, and on hide or quit, until the leaving app's windows are off screen.
+- **A switch under way owns its displays.** Between `appActivating` and `appActivated`, no other event brightens a display dimmed early for the incoming app; the finished activation sets it right. An app that leaves mid-switch undoes its early dimming.
+- **Every fade goes through a `Fader`.** A fade continues from the level on screen, moves at most one refresh along its curve per frame, and shows one frame per refresh. Code that writes a table straight to its target outside a `Fader` is a jump. Only these may jump: a settings change (a slider or "Use default"), a display with no display link, and a re-apply after macOS itself reset the gamma (display change, wake). A re-apply after our own restore (unlock, another user leaving) fades.
 
 ## Domain language
 

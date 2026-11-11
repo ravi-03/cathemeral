@@ -12,6 +12,17 @@ if [[ -d .git && -z "$(git config core.hooksPath || true)" ]]; then
     echo "==> pre-commit hook enabled (core.hooksPath = .githooks)"
 fi
 
+# Runs a step with its output held back, and prints that output only if the step fails, so a
+# passing check (and every commit, through the pre-commit hook) stays a few lines long.
+log=$(mktemp)
+trap 'rm -f "$log"' EXIT
+quietly() {
+    if ! "$@" >"$log" 2>&1; then
+        cat "$log" >&2
+        exit 1
+    fi
+}
+
 swift_sources=(App Packages/*/Sources Packages/*/Tests Packages/*/Package.swift Tools/Sources Tools/Package.swift)
 
 echo "==> swift format lint"
@@ -34,13 +45,14 @@ if [[ -n "$offenders" ]]; then
 fi
 
 echo "==> tests (BrightnessCore)"
-swift test --package-path Packages/BrightnessCore
+quietly swift test --package-path Packages/BrightnessCore
+grep -m1 'Test run with' "$log" || true
 
 echo "==> build (Cathemeral.app)"
-xcodebuild -project Cathemeral.xcodeproj -scheme Cathemeral -configuration Debug \
+quietly xcodebuild -project Cathemeral.xcodeproj -scheme Cathemeral -configuration Debug \
     -destination "platform=macOS,arch=$(uname -m)" -derivedDataPath build/DerivedData -quiet build
 
 echo "==> build (Tools)"
-swift build --package-path Tools
+quietly swift build --package-path Tools
 
 echo "==> check passed"

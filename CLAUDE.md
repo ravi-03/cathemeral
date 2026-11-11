@@ -1,6 +1,6 @@
 # cathemeral
 
-**Real screen:** after changing `ActivationMonitor`, `GammaController`, `Fader`, or when `DimmingEngine` applies levels, run `Tools/e2e.sh`. It takes over the screen for about 30 s, so `scripts/check` and CI can't run it. See `Tools/README.md`.
+**Real screen:** after changing `ActivationMonitor`, `FrontWindowTracker`, `DisplayMonitor`, `GammaController`, `Fader`, or when `DimmingEngine` applies levels, run `Tools/e2e.sh`. It takes over the screen for about 30 s, so `scripts/check` and CI can't run it. See `Tools/README.md`.
 
 ## Agent skills
 
