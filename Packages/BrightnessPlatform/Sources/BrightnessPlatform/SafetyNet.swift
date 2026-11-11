@@ -7,7 +7,8 @@ import Foundation
 ///   call `beforeExit` (restore gamma, save) and then exit.
 /// - **Death** needs nothing: macOS resets a gamma writer's tables when it exits, even on SIGKILL.
 /// - **Hangs** are caught by the watchdog helper, which this keeps running. It writes a heartbeat
-///   byte down a pipe every 250 ms from the main run loop. After 1.5 s without one, the watchdog
+///   byte down a pipe every 250 ms from the main run loop. After 1.5 s without one (both numbers
+///   are set here and passed to the watchdog), the watchdog
 ///   resets every display through its restorer and sends SIGUSR1, which arrives as
 ///   `onRestoredFromOutside` once the main thread runs again.
 ///
@@ -18,6 +19,14 @@ import Foundation
     /// Twice as often as the 500 ms first planned: a main-thread pause under 1 s then leaves a gap
     /// of at most 1.25 s, well inside the watchdog's 1.5 s timeout, instead of right at it.
     private static let heartbeatInterval: TimeInterval = 0.25
+
+    /// How long the watchdog waits without a heartbeat before treating the app as hung, passed to it
+    /// as `--timeout-ms`. The two numbers only work together, so both live here:
+    /// - A main-thread pause under 1 s leaves a gap of at most 1 s + `heartbeatInterval` = 1.25 s,
+    ///   0.25 s (17%) inside this timeout, so it never triggers a restore.
+    /// - A hang is restored within this timeout plus the restorer's spawn time (60–135 ms, ticket
+    ///   01): at most about 1.64 s against the 2 s promise, 18% inside it.
+    private static let heartbeatTimeoutMilliseconds = 1500
 
     /// A watchdog that dies within this long of its launch is relaunched only after this long, so
     /// a watchdog that can't start doesn't spin.
@@ -97,7 +106,7 @@ import Foundation
         let pipe = Pipe()
         let process = Process()
         process.executableURL = watchdogURL
-        process.arguments = [String(getpid())]
+        process.arguments = [String(getpid()), "--timeout-ms", String(Self.heartbeatTimeoutMilliseconds)]
         process.standardInput = pipe.fileHandleForReading
         process.terminationHandler = { [weak self] exited in
             DispatchQueue.main.async { MainActor.assumeIsolated { self?.replace(exited) } }

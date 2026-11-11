@@ -18,6 +18,7 @@ let package = Package(
                 .product(name: "BrightnessPlatform", package: "BrightnessPlatform"),
             ]
         ),
+        .executableTarget(name: "other-app"),
         .executableTarget(name: "peek"),
         .executableTarget(name: "switch-timing"),
     ]

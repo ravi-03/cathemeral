@@ -10,6 +10,9 @@
 //   suspend                      suspend dimming, as when the screen locks
 //   unsuspend                    stop suspending, as when the screen unlocks (fades back)
 //   stall <seconds>              block the main thread, as a short stall in the app would
+//   resume                       resume the built-in display, as its card's Resume button does
+//   status                       print `status paused`, `status unsupported` or `status dimming`
+//                                for the built-in display
 //   quit                         restore gamma and exit
 //
 // Usage: `harness <path-to-GammaWatchdog>`. Like the app, it runs the real `SafetyNet`: gamma is
@@ -87,6 +90,11 @@ func say(_ line: String) {
             guard let seconds = Double(command[1]) else { return say("bad seconds: \(command[1])") }
             Thread.sleep(forTimeInterval: seconds)
             say("stalled \(command[1]) s")
+        case ("resume", 1):
+            engine.resume(Displays.builtIn)
+            say("resumed")
+        case ("status", 1):
+            say("status \(engine.status(of: Displays.builtIn))")
         case ("quit", 1):
             restoreAndExit("quit")
         default:

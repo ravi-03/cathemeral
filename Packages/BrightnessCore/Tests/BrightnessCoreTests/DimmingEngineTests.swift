@@ -698,4 +698,90 @@ import Testing
         engine.setSuspended(false)
         #expect(engine.needsWindowTracking)
     }
+
+    @Test func aPausedDisplayGetsNoTargetWhileOtherDisplaysCarryOn() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        store.saved.appSettings[terminal.id] = Level(0.6)
+        let engine = makeEngine()
+        engine.appActivated(safari, on: builtIn)
+        engine.appActivated(safari, on: external)
+
+        engine.displayPaused(builtIn)
+        engine.appActivated(notion, on: builtIn)
+        engine.appActivated(terminal, on: external)
+        engine.setLevel(Level(0.3), for: notion.id)
+        engine.displaysChanged(to: [builtIn, external])
+
+        #expect(engine.status(of: builtIn) == .paused)
+        #expect(!backend.applied.contains { $0.display == builtIn && $0.level < .full })
+        #expect(backend.levels[external] == Level(0.6))
+    }
+
+    @Test func resumeRecapturesTheDisplayAndFadesToItsOwnersLevel() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        engine.displayPaused(builtIn)
+        engine.setLevel(Level(0.3), for: notion.id)
+
+        engine.resume(builtIn)
+
+        #expect(engine.status(of: builtIn) == .dimming)
+        #expect(backend.resumed == [builtIn])
+        #expect(backend.levels[builtIn] == Level(0.3))
+        #expect(backend.ramps[builtIn] == DimmingEngine.switchRamp)
+    }
+
+    @Test func aDisplayPausedAgainAfterResumeStaysPaused() {
+        let engine = makeEngine()
+        engine.appActivated(notion, on: builtIn)
+        engine.displayPaused(builtIn)
+        engine.resume(builtIn)
+
+        engine.displayPaused(builtIn)
+        clock.advance(by: .seconds(60))
+        engine.displaysChanged(to: [builtIn])
+
+        #expect(engine.status(of: builtIn) == .paused)
+    }
+
+    @Test func anUnsupportedDisplayGetsNoTargetUntilTheDisplaysChange() {
+        store.saved.appSettings[notion.id] = Level(0.4)
+        store.saved.appSettings[terminal.id] = Level(0.6)
+        let engine = makeEngine()
+        engine.appActivated(safari, on: builtIn)
+
+        engine.displayUnsupported(builtIn)
+        engine.appActivated(notion, on: builtIn)
+
+        #expect(engine.status(of: builtIn) == .unsupported)
+        #expect(backend.levels[builtIn] == .full)
+
+        engine.displaysChanged(to: [builtIn])
+
+        #expect(engine.status(of: builtIn) == .dimming)
+        #expect(backend.levels[builtIn] == Level(0.4))
+    }
+
+    @Test func eachWindowTickChecksTheTablesExceptWhileSuspended() {
+        let engine = makeEngine()
+
+        engine.visibleAppsChanged([builtIn: [notion]])
+        engine.visibleAppsChanged([builtIn: [notion]])
+        engine.setSuspended(true)
+        engine.visibleAppsChanged([builtIn: [notion]])
+
+        #expect(backend.checkCount == 2)
+    }
+
+    @Test func anyPausedDisplayIsReportedForTheStatusIcon() {
+        let engine = makeEngine()
+        #expect(!engine.hasPausedDisplay)
+
+        engine.displayPaused(external)
+        #expect(engine.hasPausedDisplay)
+
+        engine.resume(external)
+        #expect(!engine.hasPausedDisplay)
+    }
 }

@@ -2,12 +2,13 @@
 # Checks dimming end to end on the real built-in display: the real engine, gamma controller and
 # activation monitor, with every result read back by `peek`, a separate process that never
 # writes gamma. It switches between Terminal and Finder, then checks the safety net (termination
-# signals, kill -9, a hang caught by the watchdog, a dead watchdog), so it takes over the screen
-# for about a minute. Not part of scripts/check.
+# signals, kill -9, a hang caught by the watchdog, a dead watchdog) and paused displays (with
+# `other-app` standing in for f.lux), so it takes over the screen for about a minute and a half.
+# Not part of scripts/check.
 #
 # Exits non-zero if any reading is wrong. Every way out ends the harness (resuming it first if
-# it was stopped), and macOS resets a gamma writer's tables when it exits, so the screen is never
-# left dim.
+# it was stopped) and `other-app`, and macOS resets a gamma writer's tables when it exits, so the
+# screen is never left dim.
 set -euo pipefail
 cd "$(dirname "$0")"
 if pgrep -x Cathemeral >/dev/null; then
@@ -19,7 +20,7 @@ bin=.build/debug
 work=$(mktemp -d)
 # The watchdog is built into the app bundle by Xcode; here it is built straight from its sources.
 swiftc -O ../App/GammaWatchdog/*.swift -o "$work/GammaWatchdog"
-mkfifo "$work/in"
+mkfifo "$work/in" "$work/other-in"
 
 harness=
 runs=0
@@ -27,7 +28,8 @@ runs=0
 start_harness() {
     runs=$((runs + 1))
     log="$work/log.$runs"
-    "$bin/harness" "$work/GammaWatchdog" <"$work/in" >"$log" 2>&1 &
+    # Not holding other-app's input open (fd 4), so closing it in this script ends other-app.
+    "$bin/harness" "$work/GammaWatchdog" <"$work/in" >"$log" 2>&1 4>&- &
     harness=$!
     exec 3>"$work/in"
     until grep -q READY "$log"; do sleep 0.1; done
@@ -38,8 +40,38 @@ harness_exited() {
     exec 3>&-
 }
 watchdog_of() { pgrep -P "$1" GammaWatchdog || true; }
+
+other=
+# Starts `other-app`, another gamma writer, and waits for it to listen. Commands go to fd 4.
+start_other_app() {
+    # Not holding the harness's input open (fd 3), so closing it in this script ends the harness.
+    "$bin/other-app" <"$work/other-in" >"$work/other.log" 2>&1 3>&- &
+    other=$!
+    exec 4>"$work/other-in"
+    until grep -q READY "$work/other.log"; do
+        kill -0 "$other" 2>/dev/null || { cat "$work/other.log" >&2; exit 1; }
+        sleep 0.1
+    done
+}
+# Ends `other-app` through end of input, or kills it after 2 s: its exit makes WindowServer reset
+# every display either way.
+other_app_quits() {
+    exec 4>&-
+    for _ in {1..20}; do
+        kill -0 "$other" 2>/dev/null || break
+        sleep 0.1
+    done
+    if kill -9 "$other" 2>/dev/null; then
+        echo "FAIL  other-app didn't exit at end of input (killed)"
+        failures=$((failures + 1))
+    fi
+    wait "$other" 2>/dev/null || true
+    other=
+}
 cleanup() {
     exec 3>&- || true
+    exec 4>&- || true
+    if [[ -n "$other" ]]; then kill -9 "$other" 2>/dev/null || true; fi
     if [[ -n "$harness" ]]; then
         kill -CONT "$harness" 2>/dev/null || true
         kill -9 "$harness" 2>/dev/null || true
@@ -74,6 +106,18 @@ check() { # check <label> <command...>: ok if the command succeeds
 }
 
 is_millis() { [[ $1 =~ ^[0-9]+$ ]]; }
+
+# Asks the harness for the built-in display's status every 250 ms until it is <status>, for up to
+# <seconds>. status_becomes <status> <seconds>
+status_becomes() {
+    local tries=$(($2 * 4))
+    for ((try = 0; try < tries; try++)); do
+        echo "status" >&3
+        sleep 0.25
+        [[ "$(grep '^status ' "$log" | tail -1)" == "status $1" ]] && return 0
+    done
+    return 1
+}
 
 start_harness
 expect "before" 1.0000
@@ -188,11 +232,56 @@ echo "quit" >&3
 harness_exited
 expect "after quit" 1.0000
 
+echo "--- paused displays"
+start_other_app # before anything dims, so the table it scales is the original curve
+start_harness
+dim "paused display"
+echo "write 0.8" >&4
+check "another app's table pauses the display within three checks (about 3 s)" status_becomes paused 4
+expect "a paused display keeps the other app's colours" 0.8000
+echo "resume" >&3
+expect "resume dims on top of the other app's colours" 0.3200
+check "and the display is dimming again" status_becomes dimming 1
+echo "write 0.7" >&4
+check "the other app writing again pauses it again" status_becomes paused 4
+expect "and its colours stay" 0.7000
+sleep 3
+check "nothing resumes by itself" status_becomes paused 1
+echo "resume" >&3
+expect "resuming again dims on top of the new colours" 0.2800
+other_app_quits
+took=$("$bin/peek" --built-in --until 0.4000 --within 1.5 || true)
+check "the other app quitting after a resume re-applies on the reset curve ($took ms)" is_millis "$took"
+check "without pausing the display" status_becomes dimming 1
+echo "quit" >&3
+harness_exited
+expect "after quit" 1.0000
+
+start_other_app # first, so a failed start can't leave the harness's dimming behind
+start_harness
+dim "reset"
+echo "touch" >&4 # writes our own table back, so nothing changes
+sleep 2.2
+check "a write that leaves our table counts for nothing" status_becomes dimming 1
+other_app_quits
+took=$("$bin/peek" --built-in --until 1.0000 --within 1 || true)
+check "another gamma writer quitting resets the display ($took ms)" is_millis "$took"
+took=$("$bin/peek" --built-in --until 0.4000 --within 1.5 || true)
+check "and the reset is re-applied within about 1 s ($took ms)" is_millis "$took"
+check "without pausing the display" status_becomes dimming 1
+echo "quit" >&3
+harness_exited
+expect "after quit" 1.0000
+
 # The harness logs are only worth reading when something failed.
 if ((failures > 0)); then
     for run_log in "$work"/log.*; do
         echo "--- harness log ($(basename "$run_log"))"
         cat "$run_log"
     done
+    if [[ -f "$work/other.log" ]]; then
+        echo "--- other-app log"
+        cat "$work/other.log"
+    fi
 fi
 exit $((failures > 0))

@@ -4,6 +4,9 @@ import BrightnessCore
 @MainActor final class RecordingBackend: BrightnessBackend {
     private(set) var applied: [(display: DisplayID, level: Level, ramp: Duration)] = []
     private(set) var restoreCount = 0
+    private(set) var resumed: [DisplayID] = []
+    private(set) var checkCount = 0
+    weak var delegate: (any BrightnessBackendDelegate)?
 
     /// The last level applied to each display.
     var levels: [DisplayID: Level] {
@@ -21,6 +24,14 @@ import BrightnessCore
 
     func restore() {
         restoreCount += 1
+    }
+
+    func resume(_ display: DisplayID) {
+        resumed.append(display)
+    }
+
+    func checkTables() {
+        checkCount += 1
     }
 }
 

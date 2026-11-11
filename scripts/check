@@ -29,12 +29,13 @@ echo "==> swift format lint"
 swift format lint --strict --recursive "${swift_sources[@]}"
 
 # Only the gamma backend touches the screen (PRD Architecture, ADR 0001), and the watchdog never
-# writes gamma (CODING_STANDARDS.md). Add a file here only if it is a gamma backend or the
-# one-shot restorer.
+# writes gamma (CODING_STANDARDS.md). Add a file here only if it is a gamma backend, the one-shot
+# restorer, or the e2e stand-in for another app's gamma writes.
 echo "==> gamma writes only in allowed files"
 allowed_gamma_writers=(
     Packages/BrightnessPlatform/Sources/BrightnessPlatform/GammaController.swift
     App/GammaWatchdog/Restorer.swift
+    Tools/Sources/other-app/main.swift
 )
 gamma_writes='CGSetDisplayTransferBy(Table|Formula|ByteTable)|CGDisplayRestoreColorSyncSettings'
 offenders=$(grep -rlE "$gamma_writes" --include='*.swift' App Packages Tools \

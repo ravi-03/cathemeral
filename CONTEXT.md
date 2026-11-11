@@ -42,6 +42,10 @@ _Avoid_: excluded app, blacklisted app
 A display whose colours another app (such as f.lux or a calibration tool) has taken over, so this app stops dimming it. It stays paused until the user chooses Resume, and other displays carry on as normal.
 _Avoid_: conflicted display, disabled display, gamma fight
 
+**Unsupported display**:
+A display where dimming doesn't take, such as some HDR, Sidecar or AirPlay displays. It is marked "unsupported" and tried again when displays next change.
+_Avoid_: incompatible display, broken display
+
 **Unowned display**:
 A display with no app windows visible on it, such as an empty desktop Space. It shows at 100%, not the default level.
 _Avoid_: idle display, default display

@@ -4,15 +4,15 @@
 
 **Blocked by:** 07 (Multiple displays and display changes)
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] With f.lux (or any app that writes gamma) running, the affected display pauses within three writes, and its card shows the message and Resume.
+- [x] With f.lux (or any app that writes gamma) running, the affected display pauses within three writes, and its card shows the message and Resume.
 - [ ] Other displays keep dimming while one is paused.
-- [ ] Resume dims on top of the other app's colours. If the other app rewrites, the display pauses again.
+- [x] Resume dims on top of the other app's colours. If the other app rewrites, the display pauses again.
 - [ ] The status icon shows the dot while any display is paused.
-- [ ] Quitting another gamma-writing app while a display is dimmed re-applies the dimming within about 1 s, without pausing the display.
+- [x] Quitting another gamma-writing app while a display is dimmed re-applies the dimming within about 1 s, without pausing the display.
 - [ ] A display where gamma doesn't apply is shown as "unsupported".
-- [ ] DimmingEngine tests confirm a paused display gets no target, and Resume restores its target.
+- [x] DimmingEngine tests confirm a paused display gets no target, and Resume restores its target.
 
 ## Comments
 
@@ -20,3 +20,23 @@
 
 - The heartbeat interval (`SafetyNet.heartbeatInterval`, 250 ms) and the watchdog's timeout (`heartbeatTimeout` in `App/GammaWatchdog/main.swift`, 1500 ms) only work together but live in two files. While touching the safety net here, have `SafetyNet` pass `--timeout-ms` when it launches the watchdog, so one file owns both numbers.
 - Ticket 09 left two gaps for this ticket's 1 Hz table re-check to cover: a false watchdog restore just after wake, and a re-apply wiped by a reset that lands after it. In both cases the table equals the captured original, which this ticket re-applies silently.
+
+### 2026-11-11: implemented (agent)
+
+- `TableWatch` (BrightnessCore) decides what each read-back means. `GammaController` reads back after a fade's last frame or a single write, and on every window tick. Only the last frame is read back, because a read can stall about 50 ms during a switch. A mismatch is counted on ticks only, and only a tick where our table survived resets the count. Our own write always reads back as ours, so if a write could reset the count, switching apps often would keep the two apps fighting. In practice it pauses on three ticks, about 2–3 s, not "three writes".
+- These behaviours weren't spelled out in the ticket, but are needed to keep its promises. A table reset on three ticks in a row also pauses, since something keeps re-writing the original and re-applying would flash every second. After Resume, a reset to the curve from before Resume is re-captured and re-applied, so f.lux quitting after a Resume doesn't pause. A display at 100% showing another curve has it re-captured silently, with no write, so the next dim scales what's on screen. An unsupported display is tried again on the next display change.
+- `scripts/check` passes (104 tests). `Tools/e2e.sh` passes, including the new paused-displays section with `Tools/Sources/other-app` standing in for f.lux.
+- Done from the ticket 09 retro: `SafetyNet` passes `--timeout-ms` and owns both numbers.
+
+Left for a human (needs hardware or eyes):
+- [ ] Real f.lux, not the stand-in.
+- [ ] Other displays keep dimming while one is paused (needs an external monitor; covered by an engine test).
+- [ ] The status-icon dot, and the paused and unsupported cards, look right.
+- [ ] An unsupported display (Sidecar, AirPlay or HDR). Only tables that can't be read, and writes whose read-back shows the original, are detected. A display that stores the table but doesn't show it can't be detected.
+
+Open points:
+- **Timing.** A reset is re-applied within one tick (1 s) plus a queued read and write (up to about 80 ms), so about 1.1 s in the worst case. CODING_STANDARDS.md counts that as a breach of "about 1 s". Meeting it means checking more often than the 1 Hz window tick.
+- If the app recovers from a hang within the watchdog's 200 ms settle time, a tick can re-apply the restorer's reset with a jump before SIGUSR1 arrives. CODING_STANDARDS.md wants a fade after our own restore.
+- A write already in progress when a display pauses still lands, once.
+- Whether Night Shift writes this table is still open (ticket 02). If it does, dimmed displays would pause every evening.
+

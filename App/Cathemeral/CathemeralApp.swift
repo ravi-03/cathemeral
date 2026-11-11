@@ -10,7 +10,7 @@ struct CathemeralApp: SwiftUI.App {
         MenuBarExtra {
             PopoverView(engine: appDelegate.engine)
         } label: {
-            Image(systemName: "sun.max")
+            StatusIcon(engine: appDelegate.engine)
         }
         .menuBarExtraStyle(.window)
     }
@@ -78,5 +78,43 @@ struct CathemeralApp: SwiftUI.App {
         safetyNet.stop()
         engine.restore()
         engine.savePendingChanges()
+    }
+}
+
+/// The menu bar icon, with a dot while any display is paused.
+struct StatusIcon: View {
+    let engine: DimmingEngine
+
+    var body: some View {
+        Image(nsImage: Self.image(withDot: engine.hasPausedDisplay))
+    }
+
+    /// The menu bar shows only a label's image, not overlays, so the dot is drawn into the image.
+    /// A template image, so it follows the menu bar's colour.
+    private static func image(withDot: Bool) -> NSImage {
+        let configuration = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular)
+        guard
+            let sun = NSImage(systemSymbolName: "sun.max", accessibilityDescription: "Cathemeral")?
+                .withSymbolConfiguration(configuration)
+        else { return NSImage() }
+        guard withDot else { return sun }
+        let dot: CGFloat = 6
+        let image = NSImage(size: sun.size, flipped: false) { bounds in
+            sun.draw(in: bounds)
+            // Clear a ring around the dot so it stands apart from the rays.
+            NSGraphicsContext.current?.compositingOperation = .clear
+            NSBezierPath(
+                ovalIn: NSRect(x: bounds.maxX - dot - 2, y: bounds.maxY - dot - 2, width: dot + 2, height: dot + 2)
+            )
+            .fill()
+            NSGraphicsContext.current?.compositingOperation = .sourceOver
+            NSColor.black.setFill()
+            NSBezierPath(ovalIn: NSRect(x: bounds.maxX - dot - 1, y: bounds.maxY - dot - 1, width: dot, height: dot))
+                .fill()
+            return true
+        }
+        image.isTemplate = true
+        image.accessibilityDescription = "Cathemeral: a display is paused"
+        return image
     }
 }

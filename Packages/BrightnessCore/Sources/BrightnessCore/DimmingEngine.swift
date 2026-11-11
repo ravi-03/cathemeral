@@ -2,7 +2,7 @@ import Observation
 
 /// Works out which app owns each display and which level each display should show, and hands
 /// those levels to the backend.
-@MainActor @Observable public final class DimmingEngine {
+@MainActor @Observable public final class DimmingEngine: BrightnessBackendDelegate {
     @ObservationIgnored private let backend: BrightnessBackend
     @ObservationIgnored private let store: SettingsStore
     @ObservationIgnored private let clock: DimmingClock
@@ -21,6 +21,9 @@ import Observation
     public private(set) var displays: [DisplayID]
 
     private var owners: [DisplayID: App] = [:]
+
+    /// Displays that get no level, and why. A display missing here is dimming.
+    private var notDimming: [DisplayID: DisplayStatus] = [:]
 
     /// The level each display shows, or would show if the engine weren't suspended.
     @ObservationIgnored private var shown: [DisplayID: Level] = [:]
@@ -46,11 +49,41 @@ import Observation
         self.clock = clock
         ignoredApps = IgnoredApps.system.union([selfID])
         settings = store.load()
+        backend.delegate = self
     }
 
     /// The display owner, or nil if the display is unowned.
     public func owner(of display: DisplayID) -> App? {
         owners[display]
+    }
+
+    /// Whether `display` takes levels, and if not, why.
+    public func status(of display: DisplayID) -> DisplayStatus {
+        notDimming[display] ?? .dimming
+    }
+
+    /// Whether any display is paused, for the dot on the status icon.
+    public var hasPausedDisplay: Bool { notDimming.values.contains(.paused) }
+
+    /// Another app has taken over `display`'s colours, so it gets no more levels until `resume`.
+    /// Other displays carry on.
+    public func displayPaused(_ display: DisplayID) {
+        stopShowing(on: display, because: .paused)
+    }
+
+    /// Levels don't take on `display`, so it gets none until the displays next change.
+    public func displayUnsupported(_ display: DisplayID) {
+        stopShowing(on: display, because: .unsupported)
+    }
+
+    /// The user chose Resume on a paused display. The backend captures the display's current curve,
+    /// with the other app's colours, as its original, and the display fades to its owner's level on
+    /// top of it. If the other app takes over again, the display pauses again.
+    public func resume(_ display: DisplayID) {
+        guard notDimming[display] == .paused else { return }
+        notDimming[display] = nil
+        backend.resume(display)
+        show(target(for: display), on: display, over: Self.switchRamp)
     }
 
     /// macOS has started bringing `app` to the front, most likely on `display`, but its window may
@@ -80,8 +113,9 @@ import Observation
         showEveryTargetNotShown()
     }
 
-    /// The apps with a visible window on each display, topmost first. A display missing from
-    /// `visibleApps` has none.
+    /// The apps with a visible window on each display, topmost first, reported every second. A
+    /// display missing from `visibleApps` has none. Each report also has the backend check its
+    /// tables, unless suspended.
     ///
     /// An owner with no visible window left on its display loses it, and each display without an
     /// owner passes to its topmost visible app that isn't an ignored app, or stays unowned if there
@@ -103,6 +137,9 @@ import Observation
             if activating != nil, target(for: display) > shown[display, default: .full] { continue }
             show(target(for: display), on: display, over: Self.switchRamp)
         }
+        // This is the 1 Hz tick: another app's write, or a reset when a gamma writer exits, is
+        // announced by nothing, so the backend reads its tables back.
+        if !isSuspended { backend.checkTables() }
     }
 
     /// `app` was hidden or quit. Every display it owned passes straight away to its topmost visible
@@ -118,10 +155,14 @@ import Observation
 
     /// Displays were added, removed or reconfigured, or the Mac woke up. macOS may have reset every
     /// display's curve, so the backend restores and re-captures each original, and every owned
-    /// display is shown at its owner's level again, straight away rather than fading.
+    /// display is shown at its owner's level again, straight away rather than fading. A paused
+    /// display stays paused; an unsupported one is tried again.
     public func displaysChanged(to online: [DisplayID]) {
         displays = online
         owners = owners.filter { online.contains($0.key) }
+        // A paused display stays paused. A display change may have brought a different display, or
+        // a different mode, under an unsupported display's ID, so it is tried again.
+        notDimming = notDimming.filter { online.contains($0.key) && $0.value == .paused }
         backend.restore()
         showEveryOwnersLevel(over: .zero)
     }
@@ -214,8 +255,15 @@ import Observation
     }
 
     private func show(_ level: Level, on display: DisplayID, over ramp: Duration) {
+        guard notDimming[display] == nil else { return }
         shown[display] = level
         if !isSuspended { backend.apply(level, to: display, over: ramp) }
+    }
+
+    private func stopShowing(on display: DisplayID, because status: DisplayStatus) {
+        notDimming[display] = status
+        // It shows another app's colours, or its own curve, now, not anything of ours.
+        shown[display] = nil
     }
 
     /// Shows every owned display at its owner's level, for a backend that has just been restored.
@@ -239,4 +287,16 @@ import Observation
             self?.savePendingChanges()
         }
     }
+}
+
+/// Whether a display takes levels.
+public enum DisplayStatus: Sendable {
+    /// It shows its owner's level, or 100% if it's unowned.
+    case dimming
+    /// Another app controls its colours (`CONTEXT.md`, paused display). It stays paused until the
+    /// user chooses Resume.
+    case paused
+    /// Levels don't take on it, as on some HDR, Sidecar or AirPlay displays
+    /// (`CONTEXT.md`, unsupported display).
+    case unsupported
 }

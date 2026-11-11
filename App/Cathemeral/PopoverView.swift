@@ -23,7 +23,7 @@ struct PopoverView: View {
     }
 }
 
-/// A display, its display owner and the owner's level.
+/// A display, its display owner and the owner's level, or why the display isn't being dimmed.
 struct DisplayCard: View {
     let engine: DimmingEngine
     let display: DisplayID
@@ -33,23 +33,47 @@ struct DisplayCard: View {
             Text(Displays.name(of: display))
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            if let owner = engine.owner(of: display) {
-                LevelSlider(level: engine.level(for: owner.id)) {
-                    engine.setLevel($0, for: owner.id)
-                } title: {
-                    Text(owner.name).font(.headline)
-                }
-                if engine.hasAppSetting(for: owner.id) {
-                    Button("Use default") { engine.useDefault(for: owner.id) }
-                        .controlSize(.small)
-                } else {
-                    Text("Using default")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                Text("Not dimmed").font(.headline)
+            switch engine.status(of: display) {
+            case .paused:
+                Text("Another app is controlling this display's colours")
+                    .font(.headline)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Resume") { engine.resume(display) }
+                    .controlSize(.small)
+            case .unsupported:
+                Text("Unsupported").font(.headline)
+                Text("Dimming doesn't work on this display.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .dimming:
+                OwnerLevel(engine: engine, display: display)
             }
+        }
+    }
+}
+
+/// The display owner and its level, or "Not dimmed" for an unowned display.
+struct OwnerLevel: View {
+    let engine: DimmingEngine
+    let display: DisplayID
+
+    var body: some View {
+        if let owner = engine.owner(of: display) {
+            LevelSlider(level: engine.level(for: owner.id)) {
+                engine.setLevel($0, for: owner.id)
+            } title: {
+                Text(owner.name).font(.headline)
+            }
+            if engine.hasAppSetting(for: owner.id) {
+                Button("Use default") { engine.useDefault(for: owner.id) }
+                    .controlSize(.small)
+            } else {
+                Text("Using default")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            Text("Not dimmed").font(.headline)
         }
     }
 }
