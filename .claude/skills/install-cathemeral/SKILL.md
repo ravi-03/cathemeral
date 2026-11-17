@@ -1,15 +1,21 @@
 ---
 name: install-cathemeral
-description: Build Cathemeral from this clone and install it into /Applications. Use when the user asks to install, set up, update or reinstall the app, or uninstall it.
+description: Install Cathemeral into /Applications, from the latest release or by building this clone. Use when the user asks to install, set up, update or reinstall the app, or uninstall it.
 ---
 
 # Install Cathemeral
 
-There is no signed release (ticket 13 is wontfix), so installing means building the Release app from source and copying it into `/Applications`. Run every command from the repo root. The README's "Install" section has the same steps for people.
+Run every command from the repo root. The README's "Install" section has the same steps for people.
+
+## Prebuilt release (default)
+
+`./install.sh` downloads the latest GitHub Release (universal, ad-hoc signed), checks it, quits any running copy, replaces `/Applications/Cathemeral.app` and opens it. It needs no Xcode. Tell the user before it replaces an existing `/Applications/Cathemeral.app`; their settings live outside the app and survive. Check: `pgrep -x Cathemeral` prints a pid.
+
+Build from source instead (the steps below) when the user asks for it, wants this clone's own changes, or there is no release yet: the script fails with `Download failed.` if the download returns 404.
+
+## Build from source
 
 Each step ends on its check. Stop at the first failing check, tell the user what failed and the fix, and wait for them.
-
-## Steps
 
 1. **macOS 14 or later.** `sw_vers -productVersion` prints 14.0 or higher.
 
@@ -43,4 +49,4 @@ Then tell the user: the app has no Dock icon, only a menu bar icon. Click it for
 
 ## Uninstall
 
-Quit it (step 3), then `rm -rf /Applications/Cathemeral.app`. Ask before also deleting the settings in `~/Library/Application Support/Cathemeral`. If Launch at login was on and System Settings → General → Login Items still lists Cathemeral, the user can remove it there.
+Run `./install.sh --uninstall`, or quit it (step 3) and `rm -rf /Applications/Cathemeral.app`. Both leave the settings. Ask before also deleting the settings in `~/Library/Application Support/Cathemeral`. If Launch at login was on and System Settings → General → Login Items still lists Cathemeral, the user can remove it there.

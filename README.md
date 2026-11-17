@@ -4,7 +4,7 @@ Per-app brightness for macOS.
 
 Cathemeral is a menu bar app that dims each display to a level you choose for the app in front on that display. Set Notion to 40% once, and the screen showing Notion dims to 40% whenever it's there, without touching the brightness keys.
 
-> **Status:** early build, installed from source. There is no signed download.
+> **Status:** early build. Releases are ad-hoc signed, not notarized: install with the one-line script below.
 
 ## Screenshots
 
@@ -16,13 +16,25 @@ Click the menu bar icon for the popover: the level of the app in front on each d
 
 ## Install
 
-Cathemeral has no signed release, so you build it from this repo. It takes a few minutes, and a locally built app opens without a Gatekeeper warning.
+**Needs:** macOS 14 or later, on Apple silicon or Intel. No Xcode.
 
-**With Claude Code:** clone the repo, open Claude Code in it and ask it to "install Cathemeral". The project skill in [`.claude/skills/install-cathemeral`](.claude/skills/install-cathemeral/SKILL.md) does everything else: it checks macOS and Xcode, builds, installs and opens the app, and stops to ask you only for anything that needs `sudo` or the App Store. **If you use it, skip the manual steps below.**
+Paste this into Terminal:
 
-### Manual install
+```sh
+curl -fsSL https://raw.githubusercontent.com/ravi-03/cathemeral/main/install.sh | bash
+```
 
-**Needs:** macOS 14 or later, and Xcode 16 or later from the App Store (the Command Line Tools alone aren't enough).
+It downloads the latest [release](https://github.com/ravi-03/cathemeral/releases), checks it, quits any running copy, installs it in `/Applications` and opens it. Run the same line again to update.
+
+Cathemeral has no notarized release, but the script still installs it with no Gatekeeper warning: macOS only checks apps downloaded by a browser, and `curl` doesn't mark files that way. If you download `Cathemeral.zip` from the Releases page instead, macOS blocks the first launch. Open the app once, then go to System Settings → Privacy & Security and click **Open Anyway**.
+
+### Build from source
+
+Needs Xcode 16 or later from the App Store (the Command Line Tools alone aren't enough).
+
+**With Claude Code:** clone the repo, open Claude Code in it and ask it to "install Cathemeral". The project skill in [`.claude/skills/install-cathemeral`](.claude/skills/install-cathemeral/SKILL.md) checks macOS and Xcode, builds, installs and opens the app, and stops to ask you only for anything that needs `sudo` or the App Store.
+
+**By hand:**
 
 1. Clone the repo and select Xcode:
    ```sh
@@ -43,9 +55,17 @@ Cathemeral has no signed release, so you build it from this repo. It takes a few
    open /Applications/Cathemeral.app
    ```
 
-The app has no Dock icon, only the menu bar icon. Turn on **Launch at login** in the popover to keep it running. To update, `git pull` and repeat steps 2 and 3. Your settings live in `~/Library/Application Support/Cathemeral/` and survive reinstalls.
+To update a source build, `git pull` and repeat steps 2 and 3.
 
-**Uninstall:** quit the app, delete `/Applications/Cathemeral.app`, and optionally `~/Library/Application Support/Cathemeral/`.
+The app has no Dock icon, only the menu bar icon. Turn on **Launch at login** in the popover to keep it running. Your settings live in `~/Library/Application Support/Cathemeral/` and survive reinstalls.
+
+**Uninstall:**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ravi-03/cathemeral/main/install.sh | bash -s -- --uninstall
+```
+
+Or quit the app and delete `/Applications/Cathemeral.app`. Either way your settings stay in `~/Library/Application Support/Cathemeral/` until you delete that folder.
 
 ## How it works
 
@@ -54,7 +74,7 @@ The app has no Dock icon, only the menu bar icon. Turn on **Launch at login** in
 - **Gamma, not backlight.** Dimming scales each display's gamma table, so it stacks on top of the system brightness and never touches it. It needs only public APIs and no permissions.
 - **Never stuck dark.** Gamma is restored on quit, crash, hang, sleep/wake and display changes. A small watchdog helper restores it if the app dies or freezes.
 
-Target: macOS 14+, Apple silicon and Intel. Built in Swift and SwiftUI, installed from source (see [Install](#install)).
+Target: macOS 14+, Apple silicon and Intel. Built in Swift and SwiftUI.
 
 ## If your screen is stuck dim
 
@@ -75,6 +95,7 @@ Needs Xcode 16 or later (developed on Xcode 27.2).
 - `Tools/e2e.sh` checks dimming end to end on the real screen (see `Tools/README.md`).
 - `swift test --package-path Packages/BrightnessCore` runs the tests alone.
 - Open `Cathemeral.xcodeproj` to run the app.
+- To release, push a tag such as `v0.2.0`. `.github/workflows/release.yml` runs the check, builds a universal app and publishes `Cathemeral.zip` to GitHub Releases, where `install.sh` picks it up.
 
 The code is split into `Packages/BrightnessCore` (the rules, no AppKit), `Packages/BrightnessPlatform` (macOS wrappers) and the thin app target in `App/Cathemeral`.
 

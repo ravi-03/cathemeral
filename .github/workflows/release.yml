@@ -1,0 +1,56 @@
+name: release
+
+# Push a tag like v0.2.0 to publish a GitHub Release with a prebuilt, universal Cathemeral.app.
+# install.sh downloads it, so nobody needs Xcode to install. The app is ad-hoc signed, not
+# notarized (ticket 13 is wontfix): install.sh fetches it with curl, which sets no quarantine flag,
+# so Gatekeeper doesn't block it. A browser download needs "Open Anyway" once.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    env:
+      XCODE_VERSION: "26.6" # Keep in step with check.yml.
+    steps:
+      - uses: actions/checkout@v5
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        run: |
+          sudo xcode-select -s "/Applications/Xcode_${XCODE_VERSION}.app"
+          xcodebuild -version
+      - name: Check
+        run: scripts/check
+      - name: Build universal Release app
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          xcodebuild -project Cathemeral.xcodeproj -scheme Cathemeral -configuration Release \
+              -destination "generic/platform=macOS" -derivedDataPath build/Release -quiet \
+              ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO MARKETING_VERSION="$version" build
+      - name: Verify the bundle
+        run: |
+          app=build/Release/Build/Products/Release/Cathemeral.app
+          # Both binaries must run on Apple silicon and Intel, and the watchdog must be in the
+          # bundle or the safety net can't restore the screen if the app dies (ticket 09).
+          for bin in Cathemeral GammaWatchdog; do
+              archs=$(lipo -archs "$app/Contents/MacOS/$bin")
+              echo "$bin: $archs"
+              [[ "$archs" == *arm64* && "$archs" == *x86_64* ]] || { echo "::error::$bin is not universal"; exit 1; }
+          done
+          codesign --verify --strict --deep "$app"
+      - name: Package
+        run: |
+          mkdir -p dist
+          ditto -c -k --keepParent build/Release/Build/Products/Release/Cathemeral.app dist/Cathemeral.zip
+          (cd dist && shasum -a 256 Cathemeral.zip > Cathemeral.zip.sha256)
+          cat dist/Cathemeral.zip.sha256
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/Cathemeral.zip dist/Cathemeral.zip.sha256 \
+              --verify-tag --generate-notes --title "Cathemeral ${GITHUB_REF_NAME#v}"

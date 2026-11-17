@@ -17,3 +17,7 @@
 ### 2026-11-11: wontfix
 
 Cathemeral stays an open-source project on GitHub (MIT, see `LICENSE`) with no signed, notarized release and no Sparkle updates. People build it from source (README, "Building").
+
+### 2026-11-17: unsigned prebuilt releases
+
+Still no Developer ID signing, notarization or Sparkle. But pushing a `v*` tag now runs `.github/workflows/release.yml`, which publishes a universal, ad-hoc signed `Cathemeral.zip` to GitHub Releases. `install.sh` installs it with one `curl | bash` line and no Xcode. A `curl` download carries no quarantine flag, so Gatekeeper doesn't block it. A browser download needs "Open Anyway" in System Settings once.
