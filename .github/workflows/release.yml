@@ -14,7 +14,10 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-26
+    # Intel, not arm64: GitHub's macOS arm64 runners are short of capacity (2026-11-17, the first
+    # v0.1.0 run was never picked up). An x86_64 runner still builds the universal app, with the
+    # same Xcode as check.yml.
+    runs-on: macos-26-intel
     env:
       XCODE_VERSION: "26.6" # Keep in step with check.yml.
     steps:
