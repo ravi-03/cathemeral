@@ -52,9 +52,12 @@ main() {
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
 
+    # Without limits, a stalled connection leaves curl waiting forever. Give up on a connection
+    # that doesn't open in 15s or moves no data for 20s, and retry a few times.
+    local fetch=(curl -fL --connect-timeout 15 --speed-limit 1 --speed-time 20 --retry 3 --retry-all-errors)
     say "Downloading $url"
-    curl -fL --progress-bar -o "$tmp/Cathemeral.zip" "$url" || fail "Download failed."
-    curl -fsSL -o "$tmp/Cathemeral.zip.sha256" "$url.sha256" || fail "Checksum download failed."
+    "${fetch[@]}" --progress-bar -o "$tmp/Cathemeral.zip" "$url" || fail "Download failed."
+    "${fetch[@]}" -sS -o "$tmp/Cathemeral.zip.sha256" "$url.sha256" || fail "Checksum download failed."
     (cd "$tmp" && shasum -a 256 -c -s Cathemeral.zip.sha256) || fail "Checksum mismatch: the download is damaged. Try again."
 
     ditto -x -k "$tmp/Cathemeral.zip" "$tmp/unzipped"
